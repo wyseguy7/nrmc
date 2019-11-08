@@ -1,0 +1,5 @@
+Population	NC_Population.txt	ID:0	col:1
+Area	NC_Areas.txt	ID:0	col:1
+BlackPopulation	NC_BlackPop.txt	ID:0	col:1
+Counties	NC_Counties.txt	ID:0	col:1
+BorderLengths	NC_Edges_Lengths.txt	ID:0,1	col:2
