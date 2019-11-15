@@ -104,14 +104,14 @@ def directConflictedEdges(state):
     for ce in state["conflictedEdges"]:
         # if '1250' not in ce:# or '1005' not in ce:
         #     continue
-        # projections = getProjections((ce[0], ce[1]), state)
-        # if sum(projections) > 0 or True:
+        projections = getProjections((ce[0], ce[1]), state)
+        if sum(projections) > 0 or True:
             flowedMoves.add((ce[0], nodeToDistrict[ce[1]]))
         # elif sum(projections) == 0:
         #     raise Exception("found precise zero")
 
-        # projections = getProjections((ce[1], ce[0]), state)
-        # if sum(projections) > 0 or True:
+        projections = getProjections((ce[1], ce[0]), state)
+        if sum(projections) > 0 or True:
             flowedMoves.add((ce[1], nodeToDistrict[ce[0]]))
         # elif sum(projections) == 0:
         #     raise Exception("found precise zero")
@@ -296,7 +296,7 @@ def proposalProbEdges(flowedMoves, state, lmbda, gamma):
             else:
                 delConfEdgeCount += 1
         # prob = lmbda**(gamma*delConfEdgeCount) 
-        prob = 1#np.exp(-0.5*lmbda*delConfEdgeCount) 
+        prob = np.exp(-0.5*lmbda*delConfEdgeCount) 
         # if 'BorderLength' in state['graph'].nodes[move[0]]:
         #     prob  *= 2
                                          # if num conf edge decreases with move, 
