@@ -2,15 +2,12 @@ import logging
 import networkx as nx
 from collections import namedtuple, defaultdict
 import numpy as np
+import copy
 
-## Need to
-# Node = namedtuple('Node', ['node_id','coloring', 'x','y']) # simple struct for keeping track of nodes
 
 # Remaining to-dos
-# "Replay" function to parse state log and produce graph state at each step
-# Sort out
-# state initializer
-#
+# Sort out state initializer, object loader
+# Details on COM flow algorithm
 
 
 ####### Meeting notes 2019-12-06:
@@ -40,7 +37,7 @@ class State(object):
             d[district_id].add(node_id)
         self.color_to_node = dict(d)
 
-        # frequently we need to keep track of , we have a special way of doing that
+        # frequently we need to keep track of summed fields, we have a special way of doing that
         self.stat_tally = defaultdict(dict)
         for district_id, nodes in self.color_to_node.items():
             for stat in tallied_stats:
@@ -93,224 +90,6 @@ def naive_init_flow(node_dict, edge_list, centroid):
         theta2 = np.math.atan2(n2.y - centroid[1], n2.x - centroid[0])
         yield (edge if theta1 >= theta2 else (edge[1], edge[0])) # TODO the logical is wrong, doesn't account for branch cut issue
 
-class LoggingMixin(object):
-
-    def __init__(self, logfile=__name__):
-        self.logger = logging.getLogger(logfile)
-
-    def log(self):
-        self.logger.info(self.state)
-
-class ExtendableState(object):
-    # TODO add way to deactivate listeners as needed
-
-    def __init__(self):
-        self._listeners = dict() # maybe we should expose as method calls?
-        self.node_to_color = dict() # dict of int:int
-        self.color_to_node = dict() # dict of int:set
-
-    def update_state(self, prop):
-
-        # prop is (node_id, district_id)
-        # do basic graph update
-        self.color_to_node[prop[1]].add()
-        self.node_to_color[prop[0]] = prop[1]
-
-        for listener in self._listeners:
-            listener(self) # pass in State object, perform side-effecting operation
-
-    def get_state(self):
-        pass
-
-    # need to check if registered 
-    # if not registered, then register + instantiate
-    # listeners should be abstracted from a class, one to many, and shareable among different classes
-    # but also sandboxed from each other
-
-
-    # state will ALWAYS have some node-to-color, color-to-node, adjacency matrix
-    # state will be extensible with
-
-    # attach to listeners
-    # keep last_updated,
-
-
-class PrecinctFlow(LoggingMixin):
-
-    def __init__(self, node_dict, edge_list, coloring, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # node list a list of node_ids (hashable)
-        # edge_list a list of 2-tuples (edge_id, edge_id) in initial direction
-        # coloring a dict[node_id, color_id]
-
-        self.graph = nx.Graph()
-        self.graph.add_nodes_from(node_dict.values()) # TODO refactor
-        self.graph.add_edges_from(edge_list)
-        self.involution = [1] # keeping this as list to make more extensible in future
-
-        # keep two lookups to keep both fast - maybe we'll get rid of one later
-        dd = defaultdict(list)
-        for k, v in node_dict.items():
-            dd[v.coloring].append(k)
-        self.color_to_nodes =  dict(dd)
-        self.node_to_color = {k:v.coloring for k,v in node_dict.items()}
-
-        self.contested_edges = self.contested_edges_naive() # keep a set of contested edge tuples (u,v)
-        # should be undirected, always stored as (lesserNodeId, greaterNodeId)
-        # self.involution_state
-
-        self.state_log = [] # will store a list of accepted proposals, plus None if we reject/involve
-        # we can replay this to establish the state at any given step, though it's gonna be a pain in the butt to write
-
-
-
-    def proposal_distribution(self, prop):
-        pass
-        # J_u to evaluate the odds of proposal being accepted - this should be very customizeable
-        # sometimes a call to involve will modify this func or its internals
-
-    def accept_reject(self, prop):
-        # TODO rng here
-        # returns a boolean
-        u = np.random.uniform()
-        r = self.proposal_distribution(prop)
-
-        return u < min(r, 1)
-
-
-    # TODO ask about how involutions should work - always involve only one part at a time? handle multiple?
-    def involve(self, idx):
-        self.involution[idx]*=-1
-
-    def mh_steps(self, n=1000):
-        for i in range(n):
-            self.step()
-            self.log()
-
-    def step(self):
-
-        props, scores = self.get_proposals() # no side effects here, should be totally based on current state
-        prop, score = self.pick_proposal(props, scores) # picked a proposal
-        if self.accept_reject(prop):
-            # proposal accepted!
-
-            self.update_graph(prop) # sort out all of the backend stuff we need
-            self.state_log.append(prop)
-
-        else:
-            # proposal rejected, conduct involution
-            self.involve(0)
-            # self.graph = self.graph.reverse()
-            self.state_log.append(None) # just so we know what happened
-
-    def update_graph(self, prop):
-        # maintain the graph state after we accept a proposal
-
-        oldcolor = self.node_to_color[prop[0]]
-        newcolor = self.node_to_color[prop[1]]
-
-        self.node_to_color[prop[0]] = newcolor
-        self.color_to_nodes[oldcolor].remove(prop[0]) # is doing this going to be expensive for large precinct? No reason these can't be sets if it gets big
-        self.color_to_nodes[newcolor].append(prop[0])
-
-        # TODO check very carefully that this is doing the right thing - is i[1] always going to be out from original node?
-        new_cont_edges = {i for i in self.graph.edges(prop[0]) if i[1] not in self.color_to_nodes[newcolor] }
-        remove_cont_edges =  set(self.graph.edges(prop[0]))-new_cont_edges # if it's not contested, it should be removed
-
-        # add new edges, remove the old ones
-        self.contested_edges.update(new_cont_edges)
-        self.contested_edges.difference_update(remove_cont_edges)
-
-
-    def scores_to_probs(self, scores):
-        # take scores, use probability distribution, normalize
-        # currently uses an exponential kernel
-        scores = 1./np.exp(scores)
-        probs = scores/sum(scores) # make a probability distribution by normalizing that ish
-
-        return probs
-
-    def graph_boundary_naive(self, node_list):
-        # for a given node_list, calculate the boundary size - this is an edge attribute. assumes this is kept
-        # might be able to calculate this efficiently by intersecting with contested edges
-
-        pass
-
-    # TODO ask how we'd like this to work
-    def score_proposal(self, proposed_smaller, proposed_bigger):
-        pass
-
-
-    def get_involution_strategy(self, prop):
-        # for precinct-to-precint, we only have one involution index
-        # this is just here so we can put in more complex logic/lookups for other algorithms
-        # this has GOT to calculate it with the "canonical" edge ordering
-        return 0
-
-
-    def get_proposals(self):
-        # get a scored list of proposals for consideration
-
-        proposals = {}
-
-        # alternative would be generate all 'articulation points' for each district
-        #  then test if each edge[0] in contested_edges is articulation point
-
-        for edge in self.graph.edges:
-            if (min(edge), max(edge)) in self.contested_edges: # do we have to do min/max, or will it keep it consistent?
-
-                # make a copy of edge with the correct ordering
-                iedge = (edge[1], edge[0]) if self.involution[self.get_involution_strategy(edge)] else edge
-                # TODO True/False would be cleaner than 1 vs. -1 and much more intuitive
-
-                oldcolor = self.node_to_color[iedge[0]] # find the district that the original belongs to
-                proposed_smaller = self.graph.subgraph([i for i in self.color_to_nodes[oldcolor] if i!=iedge[0]]) # the graph that lost a node
-                proposed_bigger = self.graph.subgraph(self.color_to_nodes[iedge[1]] + [iedge[0]])
-                if not nx.is_connected(proposed_smaller):
-                    continue # can't disconnect districts
-
-                # TODO population constraint enforcement - optional, min/max check
-                # TODO constraint on compactness -
-                # TODO constraint on traversals - figure out later
-
-                score = self.score_proposal(proposed_smaller, proposed_bigger) # smaller score is better
-
-                proposals[edge] = score # no normalization here
-
-                # check that we won't wind up with a non-simply connected component (like one district surrounds another)
-
-
-        # look at all possible candidates, return list of candidate proposals with associated weights
-
-        return list(proposals.keys()), list(proposals.values()) # we need to be able to index these later
-
-    def pick_proposal(self, proposals, scores):
-        # TODO rng goes here
-        weights = self.scores_to_probs(scores)
-        idx = np.random.choice(range(len(weights)), p=weights)
-        return proposals[idx], weights[idx]
-
-def compute_com(state, district_id):
-    # TODO we need this?
-    pass
-
-
-def center_of_mass_updater(func):
-    # ensure that state has an updated copy of center of mass before this function runs
-    def inner(state, *args, **kwargs):
-        if not hasattr(state, 'district_to_com'):
-            state.district_to_com = dict() # TODO fix this to init correctly
-            state.district_to_com_updated = state.iteration
-
-
-        if state.iteration != state.district_to_com_updated:
-            districts_to_update = {district_id for node_id, district_id in state.state_log[state.district_to_com_updated:]}
-            for district_id in districts_to_update:
-                state.district_to_com[district_id] = compute_com(state, district_id)
-        return func(state, *args, **kwargs)
-    return inner
-
 def contested_edges_naive(graph):
     # generate contested edges by testing each edge in the graph. it's brute force and definitely works
     contested = set()
@@ -342,14 +121,150 @@ def contested_edges_updater(func):
 
         #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
             state.contested_edges_updated = state.iteration
-
-
-
-
         # note that func must accept state as the FIRST argument. will this impact our ability to chain these together?
         return func(state, *args, **kwargs)
 
     return inner
+
+# we can either subclass this object or attach a bunch of functions to it, either is fine really
+class MetropolisProcess(object):
+
+    def __init__(self, state):
+        self._initial_state = copy.deepcopy(state) # save for later?
+        self.state = state
+
+        # self.proposal = proposal
+        # self.handle_acceptance = handle_acceptance
+        # self.handle_rejection = handle_rejection # key life skill
+
+    def proposal(self, state):
+        pass
+
+    def handle_acceptance(self, prop, state):
+        state.flip(prop) # we can still customize this but this ought to be sufficient for a lot of cases
+
+
+    def handle_rejection(self, prop, state):
+        pass # this is algorithm-specific
+
+    def accept_reject(self, score):
+        # classic Metropolis accept-reject. we can override if needed
+        # TODO rng here
+        # returns a boolean
+        u = np.random.uniform()
+        return u < min(score, 1)
+
+    def step(self):
+        prop, score = self.proposal(self.state) # no side effects here, should be totally based on current state
+
+        if self.accept_reject(score): # no side effects here
+            # proposal accepted!
+            self.handle_acceptance(prop, self.state) # now side effects
+        else:
+            self.handle_rejection(prop, self.state) # side effects also here
+
+
+class PrecintFlowPopulationBalance(MetropolisProcess):
+    # TODO perhaps stat_tally should go in stead instead
+
+    # make proposals on what maximizes the L2 norm of a statistic
+    def __init__(self, state, statistic='population'):
+        super().__init__(state) # TODO am i doing this right in py36?
+        self.statistic = statistic
+        self.state.involution = 1 # also do involutions
+
+    def make_involution_lookup_naive(self):
+        self.involution_lookup = dict()
+        for edge in self.state.graph.edges: # these edges are presumed undirected, we have to sort out directionality
+            n1 = self.state.node_data[edge[0]]  # the centerpoint between the two nodes
+            n2 = self.state.node_data[edge[1]]
+
+            centroid = ((n1.x+n2.x)/2, (n1.y+n2.y)/2)
+
+            theta1 = np.math.atan2(n1.y - centroid[1], n1.x - centroid[0])
+            theta2 = np.math.atan2(n2.y - centroid[1], n2.x - centroid[0])
+
+            # we will always add two entries to the involution lookup per edge
+            # TODO the logical is wrong, doesn't account for branch cut issue
+            if theta1 >= theta2:
+                self.involution_lookup[edge] = 1
+                self.involution_lookup[(edge[1], edge[0])] = -1
+            else:
+                self.involution_lookup[edge] = -1
+                self.involution_lookup[(edge[1], edge[0])] = 1
+
+
+    def get_involution(self, edge):
+        # edge is (node_id, node_id) - need to return in correct order?
+        return self.involution_lookup[edge]*self.state.involution # each edge is stored twice, I guess, because we're not certain how it'll be looked up
+        # but if its state doesn't match the involution state, we need to flip the order
+
+    @contested_edges_updater
+    def proposal(self, state):
+        proposals = defaultdict(int)
+        for edge in state.graph.edges:
+            if (min(edge), max(edge)) in state.contested_edges: # do we have to do min/max, or will it keep it consistent?
+
+                # make a copy of edge with the correct ordering
+                iedge = (edge[1], edge[0]) if self.get_involution(edge)== -1 else edge
+
+                old_color = state.node_to_color[iedge[0]] # find the district that the original belongs to
+                new_color = state.node_to_color[iedge[1]]
+                proposed_smaller = state.graph.subgraph([i for i in state.color_to_nodes[old_color] if i!=iedge[0]]) # the graph that lost a node
+                proposed_bigger = state.graph.subgraph(state.color_to_nodes[iedge[1]] + [iedge[0]])
+                if not nx.is_connected(proposed_smaller):
+                    continue # can't disconnect districts
+
+                # TODO population constraint enforcement - optional, min/max check
+                # TODO constraint on compactness -
+                # TODO constraint on traversals - figure out later
+
+                score = self.score_proposal(iedge[0], old_color, state.node_to_color[iedge[1]], state) # smaller score is better
+                proposals[(iedge[0], new_color)] += score # in case multiple valid contested edges for one node, we want to sum them up
+
+        prop_sum = sum(proposals.values())
+        # pick a proposal
+        choice = np.random.choice(proposals.keys(), p=[i/prop_sum for i in proposals.values()])
+        return choice, proposals[choice] # proposal, score
+
+    def score_proposal(self, node_id, old_color, new_color, state):
+        # scores based on summed L2 norm of population (so an even spread will minimize)
+        # equivalent to comparing
+
+        current_score = sum([i**2 for i in state.stat_tally[self.statistic].values()])
+        sum_smaller = sum([state.node_data[i][self.statistic] for i in state.color_to_node[old_color] if i!=node_id])
+        sum_larger = state.stat_tally[self.statistic][new_color] + state.node_data[node_id][self.statistic]
+        new_score = current_score - state.stat_tally[self.statistic][new_color]**2 - state.stat_tally[self.statistic][old_color]**2 + sum_smaller**2 + sum_larger**2
+
+        return np.exp(np.sqrt(new_score)-np.sqrt(current_score))
+
+        # TODO this feels clumsy, mostly just for demonstration purposes
+
+    def handle_rejection(self, prop, state):
+        state.involution*= -1
+        # TODO refactor state_log to allow different types of events
+
+
+def compute_com(state, district_id):
+    # TODO we need this?
+    pass
+
+
+def center_of_mass_updater(func):
+    # ensure that state has an updated copy of center of mass before this function runs
+    def inner(state, *args, **kwargs):
+        if not hasattr(state, 'district_to_com'):
+            state.district_to_com = dict() # TODO fix this to init correctly
+            state.district_to_com_updated = state.iteration
+
+
+        if state.iteration != state.district_to_com_updated:
+            districts_to_update = {district_id for node_id, district_id in state.state_log[state.district_to_com_updated:]}
+            for district_id in districts_to_update:
+                state.district_to_com[district_id] = compute_com(state, district_id)
+        return func(state, *args, **kwargs)
+    return inner
+
 
 
 
