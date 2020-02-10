@@ -3,6 +3,7 @@ import networkx as nx
 from collections import namedtuple, defaultdict
 import numpy as np
 import copy
+import random
 
 # Remaining to-dos
 # Sort out state initializer, object loader
@@ -66,7 +67,7 @@ class State(object):
         self.graph = nx.Graph()
         self.graph.add_edges_from(edges)  # hopefully this will occur lazily
         self.node_to_color = coloring
-        print(self.graph)
+        # print(self.graph)
         d = defaultdict(set)
         for node_id, district_id in coloring.items():
             d[district_id].add(node_id)
@@ -216,13 +217,18 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
     # TODO perhaps stat_tally should go in stead instead
 
     # make proposals on what maximizes the L2 norm of a statistic
-    def __init__(self, state, statistic='population', center=(0, 0)):
+    def __init__(self, state, statistic='population', center=(0, 0), beta=1e-8):
         super().__init__(state)  # TODO am i doing this right in py36?
         self.statistic = statistic
         self.state.involution = 1  # also do involutions
         self.center = center
         # print("ping")
         self.make_involution_lookup_naive()  # instantiate the involution lookup
+        self.ideal_statistic = sum([self.state.node_data[node_id][self.statistic]
+                                    for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
+        # assumes balance
+        self.beta = beta  # used to normalize the - rigorous way to set this? rule of 0.23?
+        self.score_log = []
 
     def make_involution_lookup_naive(self):
         self.involution_lookup = dict()
@@ -254,6 +260,8 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
 
     # @Decorators.contested_edges_updater # we will figure this out later
     def proposal(self, state=None):
+        # pick a conflicted edge at random. since this is symmetric under involution, no need to compute Q(z,z')/Q(z',z).
+
         if not hasattr(state, 'contested_edges'):
             state.contested_edges = contested_edges_naive(state)
             state.contested_edges_updated = state.iteration  # set to current iteration
@@ -269,8 +277,45 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
             state.contested_edges.difference_update(
                 {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == district_id})
 
-            #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
-            state.contested_edges_updated = state.iteration
+        #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
+        state.contested_edges_updated = state.iteration
+
+        # TODO do we need to find Q(x,x') here since we're restricting to states that don't disconnect the graph?
+        # don't think so
+        edges = random.sample(state.contested_edges,
+                              len(state.contested_edges))  # TODO this is currently an O(n) operation technically,
+
+        for edge in edges:
+            iedge = (edge[1], edge[0]) if self.get_involution(edge) == -1 else edge
+            old_color, new_color = state.node_to_color[iedge[0]], state.node_to_color[iedge[1]]  # for clarity
+            proposed_smaller = state.graph.subgraph(
+                [i for i in state.color_to_node[old_color] if i != iedge[0]])  # the graph that lost a node
+            if not len(proposed_smaller) or not nx.is_connected(
+                    proposed_smaller):  # len(proposed_smaller) checks we didn't eliminate the last node in district
+                continue  # can't disconnect districts or eliminate districts entirely
+
+            score = self.score_proposal(iedge[0], old_color, new_color, state)
+            return (iedge[0], new_color), score
+        raise RuntimeError("Exceeded tries to find a proposal")
+
+    def proposal_tempered(self, state=None):
+        if not hasattr(state, 'contested_edges'):
+            state.contested_edges = contested_edges_naive(state)
+            state.contested_edges_updated = state.iteration  # set to current iteration
+
+        # this may be an empty list if it's already been updated
+        for node_id, district_id in state.state_log[state.contested_edges_updated:]:
+            # move is provided as (node_id, color_id)
+            neighbors = state.graph.edges(node_id)
+            # edges to add
+            state.contested_edges.update(
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != district_id})
+            # edges to remove
+            state.contested_edges.difference_update(
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == district_id})
+
+        #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
+        state.contested_edges_updated = state.iteration
 
         proposals = defaultdict(int)
         for edge in state.graph.edges:
@@ -285,7 +330,7 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
                 proposed_smaller = state.graph.subgraph(
                     [i for i in state.color_to_node[old_color] if i != iedge[0]])  # the graph that lost a node
                 # proposed_bigger = state.graph.subgraph(state.color_to_node[iedge[1]] + [iedge[0]])
-                if len(proposed_smaller) and nx.is_connected(
+                if not len(proposed_smaller) or not nx.is_connected(
                         proposed_smaller):  # len(proposed_smaller) checks we didn't eliminate the last node in district
                     continue  # can't disconnect districts
 
@@ -298,18 +343,34 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
                 proposals[(iedge[0],
                            new_color)] += score  # in case multiple valid contested edges for one node, we want to sum them up
 
-        if not len(proposals):
-            return None, 0.0  # this happens, just involve
-        else:
-            prop_sum = sum(proposals.values())
-            # pick a proposal
-            prop_keys_list = list(proposals.keys())
+        # prop_sum = sum(proposals.values())
+        # pick a proposal
+        prop_keys_list = list(proposals.keys())
 
-            idx = np.random.choice(range(len(prop_keys_list)), p=[i / prop_sum for i in proposals.values()])
-            choice = prop_keys_list[idx]
-            return choice, proposals[choice]  # proposal, score
+        idx = np.random.choice(range(len(prop_keys_list)), p=[i / prop_sum for i in proposals.values()])
+        choice = prop_keys_list[idx]
+        return choice, proposals[choice]  # proposal, score
 
     def score_proposal(self, node_id, old_color, new_color, state):
+        # we want to MINIMIZE score
+        current_score = sum([(i - self.ideal_statistic) ** 2 for i in state.stat_tally[self.statistic].values()])
+        sum_smaller = sum([state.node_data[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
+        sum_larger = state.stat_tally[self.statistic][new_color] + state.node_data[node_id][self.statistic]
+
+        new_score = (current_score
+                     - (state.stat_tally[self.statistic][new_color] - self.ideal_statistic) ** 2
+                     - state.stat_tally[self.statistic][old_color] ** 2
+                     + (sum_smaller - self.ideal_statistic) ** 2
+                     + (sum_larger - self.ideal_statistic) ** 2)
+
+        # TODO should beta be owned by state, or by the Markov process?
+        # technically could be state-dependent when we have parallel tempering
+
+        self.score_log.append(new_score - current_score)  # for debugging purposes
+
+        return np.exp(-1 * (new_score - current_score) * self.beta)  # TODO double check the sign here
+
+    def score_proposal_old(self, node_id, old_color, new_color, state):
         # scores based on summed L2 norm of population (so an even spread will minimize)
         # equivalent to comparing
 
@@ -318,7 +379,7 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
         sum_larger = state.stat_tally[self.statistic][new_color] + state.node_data[node_id][self.statistic]
         new_score = current_score - state.stat_tally[self.statistic][new_color] ** 2 - state.stat_tally[self.statistic][
             old_color] ** 2 + sum_smaller ** 2 + sum_larger ** 2
-        print(np.sqrt(new_score) - np.sqrt(current_score))
+        # print(np.sqrt(new_score)-np.sqrt(current_score))
         return np.exp((np.sqrt(new_score) - np.sqrt(current_score)) / 5000)
 
         # TODO this feels clumsy, mostly just for demonstration purposes
