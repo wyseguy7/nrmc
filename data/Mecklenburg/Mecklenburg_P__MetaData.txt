@@ -1,0 +1,3 @@
+Area	Mecklenburg_P__AREAS.txt	ID:0	col:1
+BorderLengths	Mecklenburg_P__BORDERLENGTHS.txt	ID:0,1	col:2
+Population	Mecklenburg_P__POPULATION.txt	ID:0	col:1
