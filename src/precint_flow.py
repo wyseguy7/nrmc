@@ -4,6 +4,7 @@ from collections import namedtuple, defaultdict
 import numpy as np
 import copy
 import random
+import collections
 
 # Remaining to-dos
 # Sort out state initializer, object loader
@@ -30,15 +31,15 @@ class Decorators(object):
                 state.contested_edges_updated = state.iteration  # set to current iteration
 
             # this may be an empty list if it's already been updated
-            for node_id, district_id in state.state_log[state.contested_edges_updated:]:
+            for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
                 # move is provided as (node_id, color_id)
                 neighbors = state.graph.edges(node_id)
                 # edges to add
                 state.contested_edges.update(
-                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != district_id})
+                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
                 # edges to remove
                 state.contested_edges.difference_update(
-                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == district_id})
+                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
 
                 #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
                 state.contested_edges_updated = state.iteration
@@ -50,39 +51,61 @@ class Decorators(object):
 
 class State(object):
 
-    def __init__(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
-        # nodes are node ids, edges iterable of (node_id, node_id), coloring is (node_id, district_id)
-        # node_id, district_id must be orderable, hashable
-        # node_data, edge_data are optional, {node_id: dict} lookups
-        # tallied stats will be updated after each iteration
-        self.__dict__ = {}
+    def __init__(self, graph, coloring, tallied_stats=('node_count','population')):
 
-        self.node_data = node_data  # this is unchecked at present
-        self.edge_data = edge_data  # make sure this is easily accessible
+        self.graph = graph
 
-        nodes = {edge[0] for edge in edges}.union({edge[1] for edge in edges})
-        if nodes.difference(set(coloring.keys())) or set(coloring.keys()).difference(nodes):
-            raise ValueError("Edges and coloring must match")
-
-        self.graph = nx.Graph()
-        self.graph.add_edges_from(edges)  # hopefully this will occur lazily
         self.node_to_color = coloring
-        # print(self.graph)
         d = defaultdict(set)
         for node_id, district_id in coloring.items():
             d[district_id].add(node_id)
         self.color_to_node = dict(d)
 
-        # frequently we need to keep track of summed fields, we have a special way of doing that
+        self.iteration = 0
+        self.state_log = []
+
         self.stat_tally = defaultdict(dict)
+
         for district_id, nodes in self.color_to_node.items():
             for stat in tallied_stats:
-                self.stat_tally[stat][district_id] = sum(self.node_data[node_id][stat] for node_id in nodes)
+                self.stat_tally[stat][district_id] = sum(graph[node_id][stat] for node_id in nodes)
 
         self.tallied_stats = tallied_stats
 
-        self.state_log = []  # contains (node_id, district_id) pairs of moves, in order
-        self.iteration = 0  # this will get bumped each time we make a move
+
+    # def __init__old(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
+    #     # nodes are node ids, edges iterable of (node_id, node_id), coloring is (node_id, district_id)
+    #     # node_id, district_id must be orderable, hashable
+    #     # node_data, edge_data are optional, {node_id: dict} lookups
+    #     # tallied stats will be updated after each iteration
+    #     self.__dict__ = {}
+    #
+    #     self.node_data = node_data  # this is unchecked at present
+    #     self.edge_data = edge_data  # make sure this is easily accessible
+    #
+    #     nodes = {edge[0] for edge in edges}.union({edge[1] for edge in edges})
+    #     if nodes.difference(set(coloring.keys())) or set(coloring.keys()).difference(nodes):
+    #         raise ValueError("Edges and coloring must match")
+    #
+    #     self.graph = nx.Graph()
+    #     self.graph.add_edges_from(edges)  # hopefully this will occur lazily
+    #     self.node_to_color = coloring
+    #     # print(self.graph)
+    #     d = defaultdict(set)
+    #     for node_id, district_id in coloring.items():
+    #         d[district_id].add(node_id)
+    #     self.color_to_node = dict(d)
+    #
+    #     # frequently we need to keep track of summed fields, we have a special way of doing that
+    #     self.stat_tally = defaultdict(dict)
+    #     for district_id, nodes in self.color_to_node.items():
+    #         for stat in tallied_stats:
+    #             self.stat_tally[stat][district_id] = sum(self.node_data[node_id][stat] for node_id in nodes)
+    #
+    #     self.tallied_stats = tallied_stats
+    #
+    #     self.state_log = []  # contains (node_id, old_color, new_color) pairs of moves, in order
+    #     self.iteration = 0  # this will get bumped each time we make a move
 
     def __setattr__(self, key, value):
         self.__dict__[key] = value
@@ -96,7 +119,7 @@ class State(object):
         self.node_to_color[node_id] = district_id
 
         # record the move
-        self.state_log.append((node_id, district_id))
+        self.state_log.append((node_id, old_color, district_id))
 
         self.iteration += 1  # add to iteration
 
@@ -148,7 +171,109 @@ class State(object):
                     8: 1005,  # just leave this one as a single to see if that causes issues
                     11: 1006, 13: 1006, 18: 1006}
 
-        return State(edges, coloring=coloring, node_data=node_data)
+        node_list = list(coloring.keys())
+
+        return State.from_edge_node_list(node_list, edges, coloring=coloring, node_data=node_data)
+
+
+    @classmethod
+    def from_edge_node_list(cls, node_list, edge_list, coloring, node_data=None, edge_data=None, tallied_stats=('population', 'node_count')):
+        ''' allows user to initialize state as (V,E), as well as node_data, edge_data instead of passing a nx.graph object with info attached
+        user must still provide coloring as before'''
+
+        graph = nx.Graph()
+        graph.add_nodes_from(node_list)
+        graph.add_edges_from(edge_list)
+
+        if node_data is not None:
+            nx.set_node_attributes(graph, node_data)
+        if edge_data is not None:
+            nx.set_edge_attributes(graph, edge_data)
+
+        return State(graph, coloring, tallied_stats=tallied_stats)
+
+
+
+    @classmethod
+    def from_square_lattice(cls, n_x=40, n_y=40):
+        ''' n_x, n_y: specify the 'length' and 'width' of the graph, respectively. i.e. n_x=40, n_y=30 specifies a 40x30 square lattice'''
+
+        edges = []
+        nodes = []
+        # x_pos = []
+        # y_pos = []
+        node_data = {}
+        edge_data = {}
+
+        for ix in range(n_x + 1):
+            for iy in range(n_y + 1):
+                ni = ix + (n_x + 1) * iy
+                nodes.append(ni)
+                node_data[ni] = {"population": 1, "x": ix, "y": iy}
+
+        for ix in range(n_x):
+            for iy in range(n_y):
+                ni = ix + (n_x + 1) * iy
+                nipx = (ix + 1) + (n_x + 1) * iy
+                nipy = ix + (n_x + 1) * (iy + 1)
+
+                edges.append((ni, nipx))
+                edges.append((ni, nipy))
+                edge_data[(ni, nipy)] = {"border_length": 1}
+                edge_data[(ni, nipx)] = {"border_length": 1}
+
+        for ix in range(n_x):
+            ni = ix + (n_x + 1) * n_y
+            nipx = ix + 1 + (n_x + 1) * n_y
+
+            edges.append((ni, nipx))
+            edge_data[(ni, nipx)] = {"border_length": 1}
+
+        for iy in range(n_y):
+            ni = n_x + (n_x + 1) * iy
+            nipy = n_x + (n_x + 1) * (iy + 1)
+            edges.append((ni,nipy))
+            edge_data[(ni, nipy)] = {"border_length": 1}
+
+    # initial state divides "left" and "right" - should we do this stochastically?
+        coloring = {i:(1 + int(i>len(nodes))) for i in nodes}
+        node_data = {i: {"population": 1} for i in nodes}
+        edge_data = {i: {"border_length": 1} for i in edges}
+
+        return State(edges, coloring, node_data, edge_data, tallied_stats=('population'))
+
+       #  def __init__(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
+
+    @classmethod
+    def from_state(cls, state):
+        '''Shim that accepts 'legacy' state object and initializes new class '''
+        coloring = state['nodeToDistrict']
+        graph = state['graph'] # includes all necessary data? do we need to recode anything?
+
+        return State(graph, coloring)
+
+
+def state_log_to_coloring(process):
+    '''converts the state log to a an array of colorings, structured . only functions if coloring is an int'''
+    import numpy as np
+    # transform an initial
+    initial_coloring = process._initial_state.node_to_color
+    # nodes = set(initial_coloring.keys())
+    # node_list = sorted(initial_coloring.keys()) # ensure consistent
+    node_list = list(process.state.graph.nodes())
+    node_idx_lookup = {node: node_list.index(node) for node in node_list}
+    coloring_array = np.ndarray(shape=(len(process.state.state_log), len(process.state.graph.nodes())),
+                                dtype='int64')
+
+    coloring_array[0, :] = [initial_coloring[i] for i in node_list]
+    for i in range(1, len(process.state.state_log)):
+        node_id, old_color, new_color = process.state.state_log[i]  # this might be skipping the first move?
+        prev_state = coloring_array[(i - 1), :]  # check that this returns a copy not a pointer
+
+        prev_state[node_idx_lookup[node_id]] = new_color
+        coloring_array[i, :] = prev_state
+
+    return coloring_array
 
 
 def naive_init_flow(node_dict, edge_list, centroid):
@@ -165,7 +290,7 @@ def naive_init_flow(node_dict, edge_list, centroid):
         theta1 = np.math.atan2(n1.y - centroid[1], n1.x - centroid[0])
         theta2 = np.math.atan2(n2.y - centroid[1], n2.x - centroid[0])
         yield (edge if theta1 >= theta2 else (
-        edge[1], edge[0]))  # TODO the logical is wrong, doesn't account for branch cut issue
+            edge[1], edge[0]))  # TODO the logical is wrong, doesn't account for branch cut issue
 
 
 def contested_edges_naive(state):
@@ -267,15 +392,15 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
             state.contested_edges_updated = state.iteration  # set to current iteration
 
         # this may be an empty list if it's already been updated
-        for node_id, district_id in state.state_log[state.contested_edges_updated:]:
+        for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
             # move is provided as (node_id, color_id)
             neighbors = state.graph.edges(node_id)
             # edges to add
             state.contested_edges.update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != district_id})
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
             # edges to remove
             state.contested_edges.difference_update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == district_id})
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
 
         #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
         state.contested_edges_updated = state.iteration
@@ -304,15 +429,15 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
             state.contested_edges_updated = state.iteration  # set to current iteration
 
         # this may be an empty list if it's already been updated
-        for node_id, district_id in state.state_log[state.contested_edges_updated:]:
+        for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
             # move is provided as (node_id, color_id)
             neighbors = state.graph.edges(node_id)
             # edges to add
             state.contested_edges.update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != district_id})
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
             # edges to remove
             state.contested_edges.difference_update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == district_id})
+                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
 
         #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
         state.contested_edges_updated = state.iteration
@@ -320,7 +445,8 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
         proposals = defaultdict(int)
         for edge in state.graph.edges:
             if (
-            min(edge), max(edge)) in state.contested_edges:  # do we have to do min/max, or will it keep it consistent?
+                    min(edge),
+                    max(edge)) in state.contested_edges:  # do we have to do min/max, or will it keep it consistent?
 
                 # make a copy of edge with the correct ordering
                 iedge = (edge[1], edge[0]) if self.get_involution(edge) == -1 else edge
@@ -388,6 +514,12 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
         state.involution *= -1
         # TODO refactor state_log to allow different types of events
 
+class PrecintFlowTempered(PrecintFlowPopulationBalance):
+
+    # only change here is to tempering
+
+
+
 
 # assumes there is a weight, x, y attribute associated with each node
 def compute_com(state, district_id):
@@ -436,7 +568,9 @@ def center_of_mass_updater(func):
             state.district_to_com_updated = state.iteration
 
         if state.iteration != state.district_to_com_updated:
-            districts_to_update = {district_id for node_id, district_id in
+
+            # TODO this isn't correct - also need to update the old_color districts
+            districts_to_update = {new_color for node_id, old_color, new_color in
                                    state.state_log[state.district_to_com_updated:]}
             for district_id in districts_to_update:
                 state.district_to_com[district_id] = compute_com(state, district_id)
@@ -444,4 +578,35 @@ def center_of_mass_updater(func):
 
     return inner
 
+
+def perimeter_naive(state):
+    # TODO refactor
+    dd = collections.defaultdict(int)
+
+    for n0, n1 in state.contested_edges:
+        shared_length = state.node_data[n0]['shared_perimeter'][n1]  #
+        dd[state.node_to_color[n0]] += shared_length
+        dd[state.node_to_color[n1]] += shared_length
+
+    return dd
+
+    # requires that contested edges are updated
+
+
+def update_perimeter(state):
+    if not hasattr(state, 'district_to_perimeter'):
+        state.district_to_perimeter = perimeter_naive(state)
+        state.perimeter_updated = state.iteration  # set to current iteration
+
+    for node_id, old_color, new_color in state.state_log[state.perimeter_updated:]:
+        # by definition, add any edges between the old_color and the recolored_node
+
+        state.district_to_perimeter[old_color] += state.graph.edges[node_id]
+
+    # districts_to_recompute = {new_color for node_id, old_color, new_color in state.state_log[state.perimeter_updated:]}
+
+    # brute-force recomputation of districts that we've modified
+    # for district_id in districts_to_recompute:
+
+    state.perimeter_updated = state.iteration
 
