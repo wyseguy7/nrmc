@@ -140,9 +140,9 @@ def generateSquareLatticeData(pathToData, pop = 1):
     graphData = geometryDesc.split("_")
     N_x = 40
     N_y = 40
-    if len(geometryDesc) > 1:
+    if len(graphData) > 1:
         N_x = N_y = int(graphData[1])
-    if len(geometryDesc) > 2:
+    if len(graphData) > 2:
         N_y = int(graphData[2])
 
     nodeDataToIndex = {"ID" : 0, "Centroid" : (1, 2), "Population" : 3}

@@ -1,13 +1,13 @@
 import networkx as nx
 import operator
 
+# from src import constraints, initializer, tree
 import constraints
 import initializer
 import tree
 
 import importlib
-
-importlib.reload(constraints)
+importlib.reload(constraints) # why is this here?
 importlib.reload(initializer)
 importlib.reload(tree)
 
@@ -104,7 +104,7 @@ def contructPlan(state, info, maxAttempts = 1000):
 
 def splitSquareLattice(state, info):
     graph = state["graph"]
-    minx = min([graph.nodes[ni]["Centroid"][0] for ni in graph.nodes])
+    minx = min([graph.nodes[ni]["Centroid"][0] for ni in graph.nodes]) # TODO could find min, max simultaneously with one walk
     maxx = max([graph.nodes[ni]["Centroid"][0] for ni in graph.nodes])
     miny = min([graph.nodes[ni]["Centroid"][1] for ni in graph.nodes])
     maxy = max([graph.nodes[ni]["Centroid"][1] for ni in graph.nodes])

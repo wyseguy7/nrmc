@@ -83,10 +83,11 @@ def setRunParametersFromCommandLine(sysargs = []):
 
     state = {}
 
-    geometryDesc = "DuplinOnslow"
+    geometryDesc = "SquareLattice"
     numDists = 2
     idealPop = "mean"
-    steps = 10**6
+    # steps = 10**6
+    steps = 10**4
     mul = 1
     seed = 912311
     gamma = "_nonTemperedProposal_noFlow_"
@@ -106,7 +107,8 @@ def setRunParametersFromCommandLine(sysargs = []):
 
     seed *= mul
     
-    pathToData = os.path.join("..", "data", geometryDesc)
+    # pathToData = os.path.join("..", "data", geometryDesc)
+    pathToData = os.path.join('nonreversiblecodebase', 'data', geometryDesc)
     state = setGraph(pathToData, state)
     
     random.seed(seed)
