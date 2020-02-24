@@ -83,7 +83,8 @@ def setRunParametersFromCommandLine(sysargs = []):
 
     state = {}
 
-    geometryDesc = "DuplinOnslow"
+    # geometryDesc = "DuplinOnslow"
+    geometryDesc = "SquareLattice"
     numDists = 2
     idealPop = "mean"
     steps = 10**6
