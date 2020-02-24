@@ -403,24 +403,22 @@ class PrecintFlowTempered(PrecintFlow):
 
     def proposal(self, state):
 
-        while True:
-            try:
-                # get all the proposals, with their associated probabilities
-                proposals = self.get_proposals(state)
-                # pick a proposal
-                proposal, q = self.pick_proposal(proposals)
-                node_id, old_color, new_color = proposal
+        # get all the proposals, with their associated probabilities
+        proposals = self.get_proposals(state)
+        # pick a proposal
+        proposal, q = self.pick_proposal(proposals)
+        node_id, old_color, new_color = proposal
 
-                new_state = copy.deepcopy(state)
-                new_state.flip(node_id, new_color)
-                new_state.involution *=-1
-                reverse_proposals = self.get_proposals(new_state)
-
-                q_prime = reverse_proposals[(node_id, new_color, old_color)]
-                score = self.score_proposal(node_id, old_color, new_color, state)
-                return proposal, q/q_prime*exp(-score*self.lmda)
-            except KeyError:
-                pass
+        new_state = copy.deepcopy(state)
+        new_state.flip(node_id, new_color)
+        new_state.involution *=-1
+        reverse_proposals = self.get_proposals(new_state)
+        try:
+            q_prime = reverse_proposals[(node_id, new_color, old_color)]
+            score = self.score_proposal(node_id, old_color, new_color, state)
+            return proposal, q_prime/q*exp(-score*self.lmda)
+        except KeyError:
+            return proposal, 0 # sometimes reverse is not contained in proposals list - possible bug?
 
 
     def pick_proposal(self, proposals):
