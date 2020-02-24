@@ -72,41 +72,6 @@ class State(object):
 
         self.tallied_stats = tallied_stats
 
-
-    # def __init__old(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
-    #     # nodes are node ids, edges iterable of (node_id, node_id), coloring is (node_id, district_id)
-    #     # node_id, district_id must be orderable, hashable
-    #     # node_data, edge_data are optional, {node_id: dict} lookups
-    #     # tallied stats will be updated after each iteration
-    #     self.__dict__ = {}
-    #
-    #     self.node_data = node_data  # this is unchecked at present
-    #     self.edge_data = edge_data  # make sure this is easily accessible
-    #
-    #     nodes = {edge[0] for edge in edges}.union({edge[1] for edge in edges})
-    #     if nodes.difference(set(coloring.keys())) or set(coloring.keys()).difference(nodes):
-    #         raise ValueError("Edges and coloring must match")
-    #
-    #     self.graph = nx.Graph()
-    #     self.graph.add_edges_from(edges)  # hopefully this will occur lazily
-    #     self.node_to_color = coloring
-    #     # print(self.graph)
-    #     d = defaultdict(set)
-    #     for node_id, district_id in coloring.items():
-    #         d[district_id].add(node_id)
-    #     self.color_to_node = dict(d)
-    #
-    #     # frequently we need to keep track of summed fields, we have a special way of doing that
-    #     self.stat_tally = defaultdict(dict)
-    #     for district_id, nodes in self.color_to_node.items():
-    #         for stat in tallied_stats:
-    #             self.stat_tally[stat][district_id] = sum(self.node_data[node_id][stat] for node_id in nodes)
-    #
-    #     self.tallied_stats = tallied_stats
-    #
-    #     self.state_log = []  # contains (node_id, old_color, new_color) pairs of moves, in order
-    #     self.iteration = 0  # this will get bumped each time we make a move
-
     def __setattr__(self, key, value):
         self.__dict__[key] = value
 
@@ -192,58 +157,6 @@ class State(object):
             nx.set_edge_attributes(graph, edge_data)
 
         return State(graph, coloring, tallied_stats=tallied_stats)
-
-
-
-    # @classmethod
-    # def from_square_lattice(cls, n_x=40, n_y=40):
-    #     ''' n_x, n_y: specify the 'length' and 'width' of the graph, respectively. i.e. n_x=40, n_y=30 specifies a 40x30 square lattice'''
-    #
-    #     edges = []
-    #     nodes = []
-    #     # x_pos = []
-    #     # y_pos = []
-    #     node_data = {}
-    #     edge_data = {}
-    #
-    #     for ix in range(n_x + 1):
-    #         for iy in range(n_y + 1):
-    #             ni = ix + (n_x + 1) * iy
-    #             nodes.append(ni)
-    #             node_data[ni] = {"population": 1, "x": ix, "y": iy}
-    #
-    #     for ix in range(n_x):
-    #         for iy in range(n_y):
-    #             ni = ix + (n_x + 1) * iy
-    #             nipx = (ix + 1) + (n_x + 1) * iy
-    #             nipy = ix + (n_x + 1) * (iy + 1)
-    #
-    #             edges.append((ni, nipx))
-    #             edges.append((ni, nipy))
-    #             edge_data[(ni, nipy)] = {"border_length": 1}
-    #             edge_data[(ni, nipx)] = {"border_length": 1}
-    #
-    #     for ix in range(n_x):
-    #         ni = ix + (n_x + 1) * n_y
-    #         nipx = ix + 1 + (n_x + 1) * n_y
-    #
-    #         edges.append((ni, nipx))
-    #         edge_data[(ni, nipx)] = {"border_length": 1}
-    #
-    #     for iy in range(n_y):
-    #         ni = n_x + (n_x + 1) * iy
-    #         nipy = n_x + (n_x + 1) * (iy + 1)
-    #         edges.append((ni,nipy))
-    #         edge_data[(ni, nipy)] = {"border_length": 1}
-    #
-    # # initial state divides "left" and "right" - should we do this stochastically?
-    #     coloring = {i:(1 + int(i>len(nodes))) for i in nodes}
-    #     node_data = {i: {"population": 1} for i in nodes}
-    #     edge_data = {i: {"border_length": 1} for i in edges}
-    #
-    #     return State(edges, coloring, node_data, edge_data, tallied_stats=('population'))
-
-       #  def __init__(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
 
     @classmethod
     def from_state(cls, state):
