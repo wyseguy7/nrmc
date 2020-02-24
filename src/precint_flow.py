@@ -609,4 +609,5 @@ def compactness_score(state, proposal):
     score_old = perim_smaller**2/area_smaller + perim_larger**2/area_larger
     score_new = perim_smaller_new**2/(area_smaller-area_prop) + perim_larger_new**2/(area_larger+area_prop)
 
-    return score_old - score_new # the delta
+    # return score_old - score_new # the delta
+    return score_new-score_old
