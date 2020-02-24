@@ -125,14 +125,15 @@ class State(object):
 
         for stat in self.tallied_stats:
             # the stat tally giveth
-            self.stat_tally[stat][district_id] += self.node_data[node_id][stat]
+            self.stat_tally[stat][district_id] += self.graph.nodes()[node_id][stat] # node_data[node_id][stat]
             # ...and it taketh away
-            self.stat_tally[stat][old_color] -= self.node_data[node_id][stat]
+            self.stat_tally[stat][old_color] -= self.graph.nodes()[node_id][stat] # self.node_data[node_id][stat]
 
     # shim to add in data
 
     @classmethod
     def from_file_hardcode(cls):
+        # TODO update this for new graph stuff
         # just for testing purposes on Duplin Onslow
         filepath = 'nonreversiblecodebase/data/DuplinOnslow/Duplin_C_Onslow_P__BORDERLENGTHS.txt'
         # todo sort out
@@ -316,7 +317,7 @@ class MetropolisProcess(object):
         pass
 
     def handle_acceptance(self, prop, state):
-        state.flip(prop[0], prop[1])  # we can still customize this but this ought to be sufficient for a lot of cases
+        state.flip(prop[0], prop[2])  # we can still customize this but this ought to be sufficient for a lot of cases
 
     def handle_rejection(self, prop, state):
         pass  # this is algorithm-specific
@@ -329,9 +330,9 @@ class MetropolisProcess(object):
         return u < min(score, 1)
 
     def step(self):
-        prop, score = self.proposal()  # no side effects here, should be totally based on current state
+        prop, prob = self.proposal(self.state)  # no side effects here, should be totally based on current state
 
-        if self.accept_reject(score):  # no side effects here
+        if self.accept_reject(prob):  # no side effects here
             # proposal accepted!
             self.handle_acceptance(prop, self.state)  # now side effects
         else:
@@ -356,8 +357,9 @@ class PrecintFlow(MetropolisProcess):
         self.center = center
         # print("ping")
         self.make_involution_lookup_naive()  # instantiate the involution lookup
-        self.ideal_statistic = sum([self.state.node_data[node_id][self.statistic]
-                                    for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
+        self.ideal_statistic = sum([node[self.statistic] for node in self.state.graph.nodes().values()])/len(self.state.graph.nodes())
+        # self.ideal_statistic = sum([self.state.node_data[node_id][self.statistic]
+        #                             for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
         # assumes balance
         self.lmda = lmda  # used to normalize the - rigorous way to set this? rule of 0.23?
         self.score_log = []
@@ -369,8 +371,10 @@ class PrecintFlow(MetropolisProcess):
         self.involution_lookup = dict()
         for edge in self.state.graph.edges:  # these edges are presumed undirected, we have to sort out directionality
             # print("pong")
-            n1 = self.state.node_data[edge[0]]  # the centerpoint between the two nodes
-            n2 = self.state.node_data[edge[1]]
+            # n1 = self.state.node_data[edge[0]]  # the centerpoint between the two nodes
+            # n2 = self.state.node_data[edge[1]]
+            n1 = self.state.graph.nodes()[edge[0]]
+            n2 = self.state.graph.nodes()[edge[1]]
 
             # centroid = ((n1.x+n2.x)/2, (n1.y+n2.y)/2)
 
@@ -380,7 +384,7 @@ class PrecintFlow(MetropolisProcess):
             # we will always add two entries to the involution lookup per edge
 
             # should this be greater or less than zero?
-            if compute_dot_product((n1['x'], n1['y']), (n2['x'], n2['y']), center=self.center) >= 0:
+            if compute_dot_product(n1['Centroid'], n2['Centroid'], center=self.center) >= 0:
                 self.involution_lookup[edge] = 1
                 self.involution_lookup[(edge[1], edge[0])] = -1
             else:
@@ -398,6 +402,7 @@ class PrecintFlow(MetropolisProcess):
 
 
     def handle_rejection(self, prop, state):
+        print("Involution on step {}".format(state.iteration))
         state.involution *= -1
         # TODO refactor state_log to allow different types of events
 
@@ -433,8 +438,8 @@ class PrecintFlow(MetropolisProcess):
     def score_proposal(self, node_id, old_color, new_color, state):
         # we want to MINIMIZE score
         current_score = sum([(i - self.ideal_statistic) ** 2 for i in state.stat_tally[self.statistic].values()])
-        sum_smaller = sum([state.node_data[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
-        sum_larger = state.stat_tally[self.statistic][new_color] + state.node_data[node_id][self.statistic]
+        sum_smaller = sum([state.graph.nodes()[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
+        sum_larger = state.stat_tally[self.statistic][new_color] + state.graph.nodes()[node_id][self.statistic]
 
         new_score = (current_score
                      - (state.stat_tally[self.statistic][new_color] - self.ideal_statistic) ** 2
@@ -447,9 +452,10 @@ class PrecintFlow(MetropolisProcess):
 
         self.score_log.append(new_score - current_score)  # for debugging purposes
 
-        return np.exp(-1 * (new_score - current_score) * self.lmbda)  # TODO double check the sign here
+        return np.exp(-1 * (new_score - current_score) * self.lmda)  # TODO double check the sign here
 
     def score_proposal_old(self, node_id, old_color, new_color, state):
+        # DEPRECATED
         # scores based on summed L2 norm of population (so an even spread will minimize)
         # equivalent to comparing
 
@@ -468,59 +474,65 @@ class PrecintFlow(MetropolisProcess):
 #
 class PrecintFlowTempered(PrecintFlow):
 
+    # def reverse_proposal_prob(self, state, proposal):
+    #     node_id, old_color, new_color = proposal
+    #     new_state = copy.deepcopy(state)
+    #     new_state.involution *= -1 # involve
+    #     new_state.flip(node_id, new_color)
+    #
+    #     return self.get_proposals(new_state)
 
-    def reverse_proposal_prob(self, state, proposal):
-        node_id, old_color, new_color = proposal
-        new_state = copy.deepcopy(state)
-        new_state.involution *= -1 # involve
-        new_state.flip(node_id, new_color)
-
-        return self.get_proposals(new_state)
-
-
-        # finds probability of proposing x' -> x
 
     def score_proposal(self, node_id, old_color, new_color, state):
-        update_perimeter_aggressive(state)
-        return compactness_score((node_id, old_color, new_color))
+        # update_perimeter_aggressive(state)
+        return compactness_score(state, (node_id, old_color, new_color))
 
 
     def proposal(self, state):
 
-        # get all the proposals, with their associated probabilities
-        proposals = self.get_proposals(state)
-        # pick a proposal
-        proposal, q = self.pick_proposal(proposals)
-        reverse_proposals = self.reverse_proposal_prob(state, proposal)
-        q_prime = reverse_proposals[proposal]
+        while True:
+            try:
+                # get all the proposals, with their associated probabilities
+                proposals = self.get_proposals(state)
+                # pick a proposal
+                proposal, q = self.pick_proposal(proposals)
+                node_id, old_color, new_color = proposal
 
-        score = self.score_proposal(proposal[0], proposal[1], proposal[2], state)
+                new_state = copy.deepcopy(state)
+                new_state.flip(node_id, new_color)
+                new_state.involution *=-1
+                reverse_proposals = self.get_proposals(new_state)
 
-
-        return proposal, q/q_prime*exp(-score*self.lmda)
-
+                q_prime = reverse_proposals[(node_id, new_color, old_color)]
+                score = self.score_proposal(node_id, old_color, new_color, state)
+                return proposal, q/q_prime*exp(-score*self.lmda)
+            except KeyError:
+                pass
 
 
     def pick_proposal(self, proposals):
 
         threshold = np.random.random()
         cum_sum = 0
-        for node_id, prob in proposals:
-            cum_sum += prob
+        keys = sorted(proposals.keys())
+        for key in keys:
+            cum_sum += proposals[key]
             if cum_sum >= threshold:
-                return node_id, prob
+                return key, proposals[key]
 
 
     def get_proposals(self, state=None):
 
         update_contested_edges(state)
+        update_perimeter_aggressive(state)
 
         proposals = defaultdict(int)
         for iedge in self.get_directed_edges(state):
 
                 old_color = state.node_to_color[iedge[0]]  # find the district that the original belongs to
                 new_color = state.node_to_color[iedge[1]]
-                self.check_connected(state, iedge[0], old_color)
+                if not self.check_connected(state, iedge[0], old_color):
+                     continue
 
                 # TODO population constraint enforcement - optional, min/max check
                 # TODO constraint on compactness -
@@ -540,12 +552,13 @@ class PrecintFlowTempered(PrecintFlow):
 
         # return choice, probs[idx]  # proposal, probability
         # return zip(prop_keys_list, [prob/prob_sum for prob in probs])
-        return {prop:prob/prob_sum for prop, prob in zip(prop_keys_list, probs)}
+        return {prop: prob/prob_sum for prop, prob in zip(prop_keys_list, probs)}
 
 
 
 # assumes there is a weight, x, y attribute associated with each node
 def compute_com(state, district_id):
+    # TODO needs updating for new handling of node data
     # get an updated center of mass for a particular district_id
 
     nodes = state.color_to_node[district_id]  # set
@@ -607,14 +620,11 @@ def perimeter_naive(state):
     dd = collections.defaultdict(int)
 
     for n0, n1 in state.contested_edges:
-        shared_length = state.node_data[n0]['shared_perimeter'][n1]  #
+        shared_length = state.graph.edges()[(n0,n1)]['BorderLength']
         dd[state.node_to_color[n0]] += shared_length
         dd[state.node_to_color[n1]] += shared_length
 
     return dd
-
-    # requires that contested edges are updated
-
 
 
 def update_perimeter_aggressive(state):
@@ -668,7 +678,7 @@ def compactness_score(state, proposal):
     prop_node, old_color, new_color = proposal # unpack
     score, score_prop = 0, 0
 
-    area_prop = state.graph.nodes()[prop_node]['Area'] if 'Area' in state.graph.nodes()[prop_node]['Area'] else 1
+    area_prop = state.graph.nodes()[prop_node]['Area'] if 'Area' in state.graph.nodes()[prop_node] else 1
 
     perim_smaller = state.district_to_perimeter[old_color]
     area_smaller = sum([(state.graph.nodes()[node_id]['Area'] if 'Area' in state.graph.nodes()[node_id] else 1)
@@ -680,12 +690,12 @@ def compactness_score(state, proposal):
 
     node_neighbors = state.graph.neighbors(prop_node)
 
-    perim_larger_new = perim_larger + sum([state.graph.edges()[(prop_node, other_node)] for other_node in node_neighbors
+    perim_larger_new = perim_larger + sum([state.graph.edges()[(prop_node, other_node)]['BorderLength'] for other_node in node_neighbors
                                            if other_node not in state.color_to_node[new_color]])
-    perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)] for other_node in node_neighbors
+    perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)]['BorderLength'] for other_node in node_neighbors
                                            if other_node not in state.color_to_node[old_color]])
 
     score_old = perim_smaller**2/area_smaller + perim_larger**2/area_larger
     score_new = perim_smaller_new**2/(area_smaller-area_prop) + perim_larger_new**2/(area_larger+area_prop)
 
-    return score_new-score_old # the delta
+    return score_old - score_new # the delta
