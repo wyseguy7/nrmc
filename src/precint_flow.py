@@ -15,7 +15,7 @@ import collections
 
 # state object that allows arbitrary extensions
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
-
+exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 class Decorators(object):
 
@@ -194,53 +194,53 @@ class State(object):
 
 
 
-    @classmethod
-    def from_square_lattice(cls, n_x=40, n_y=40):
-        ''' n_x, n_y: specify the 'length' and 'width' of the graph, respectively. i.e. n_x=40, n_y=30 specifies a 40x30 square lattice'''
-
-        edges = []
-        nodes = []
-        # x_pos = []
-        # y_pos = []
-        node_data = {}
-        edge_data = {}
-
-        for ix in range(n_x + 1):
-            for iy in range(n_y + 1):
-                ni = ix + (n_x + 1) * iy
-                nodes.append(ni)
-                node_data[ni] = {"population": 1, "x": ix, "y": iy}
-
-        for ix in range(n_x):
-            for iy in range(n_y):
-                ni = ix + (n_x + 1) * iy
-                nipx = (ix + 1) + (n_x + 1) * iy
-                nipy = ix + (n_x + 1) * (iy + 1)
-
-                edges.append((ni, nipx))
-                edges.append((ni, nipy))
-                edge_data[(ni, nipy)] = {"border_length": 1}
-                edge_data[(ni, nipx)] = {"border_length": 1}
-
-        for ix in range(n_x):
-            ni = ix + (n_x + 1) * n_y
-            nipx = ix + 1 + (n_x + 1) * n_y
-
-            edges.append((ni, nipx))
-            edge_data[(ni, nipx)] = {"border_length": 1}
-
-        for iy in range(n_y):
-            ni = n_x + (n_x + 1) * iy
-            nipy = n_x + (n_x + 1) * (iy + 1)
-            edges.append((ni,nipy))
-            edge_data[(ni, nipy)] = {"border_length": 1}
-
-    # initial state divides "left" and "right" - should we do this stochastically?
-        coloring = {i:(1 + int(i>len(nodes))) for i in nodes}
-        node_data = {i: {"population": 1} for i in nodes}
-        edge_data = {i: {"border_length": 1} for i in edges}
-
-        return State(edges, coloring, node_data, edge_data, tallied_stats=('population'))
+    # @classmethod
+    # def from_square_lattice(cls, n_x=40, n_y=40):
+    #     ''' n_x, n_y: specify the 'length' and 'width' of the graph, respectively. i.e. n_x=40, n_y=30 specifies a 40x30 square lattice'''
+    #
+    #     edges = []
+    #     nodes = []
+    #     # x_pos = []
+    #     # y_pos = []
+    #     node_data = {}
+    #     edge_data = {}
+    #
+    #     for ix in range(n_x + 1):
+    #         for iy in range(n_y + 1):
+    #             ni = ix + (n_x + 1) * iy
+    #             nodes.append(ni)
+    #             node_data[ni] = {"population": 1, "x": ix, "y": iy}
+    #
+    #     for ix in range(n_x):
+    #         for iy in range(n_y):
+    #             ni = ix + (n_x + 1) * iy
+    #             nipx = (ix + 1) + (n_x + 1) * iy
+    #             nipy = ix + (n_x + 1) * (iy + 1)
+    #
+    #             edges.append((ni, nipx))
+    #             edges.append((ni, nipy))
+    #             edge_data[(ni, nipy)] = {"border_length": 1}
+    #             edge_data[(ni, nipx)] = {"border_length": 1}
+    #
+    #     for ix in range(n_x):
+    #         ni = ix + (n_x + 1) * n_y
+    #         nipx = ix + 1 + (n_x + 1) * n_y
+    #
+    #         edges.append((ni, nipx))
+    #         edge_data[(ni, nipx)] = {"border_length": 1}
+    #
+    #     for iy in range(n_y):
+    #         ni = n_x + (n_x + 1) * iy
+    #         nipy = n_x + (n_x + 1) * (iy + 1)
+    #         edges.append((ni,nipy))
+    #         edge_data[(ni, nipy)] = {"border_length": 1}
+    #
+    # # initial state divides "left" and "right" - should we do this stochastically?
+    #     coloring = {i:(1 + int(i>len(nodes))) for i in nodes}
+    #     node_data = {i: {"population": 1} for i in nodes}
+    #     edge_data = {i: {"border_length": 1} for i in edges}
+    #
+    #     return State(edges, coloring, node_data, edge_data, tallied_stats=('population'))
 
        #  def __init__(self, edges, coloring, node_data=None, edge_data=None, tallied_stats=('node_count', 'population')):
 
@@ -250,7 +250,7 @@ class State(object):
         coloring = state['nodeToDistrict']
         graph = state['graph'] # includes all necessary data? do we need to recode anything?
 
-        return State(graph, coloring)
+        return State(graph, coloring, tallied_stats=[]) # should tallied stats be different?
 
 
 def state_log_to_coloring(process):
@@ -309,10 +309,10 @@ def contested_edges_naive(state):
 class MetropolisProcess(object):
 
     def __init__(self, state):
-        self._initial_state = copy.deepcopy(state)  # save for later?
+        self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
 
-    def proposal(self, state):
+    def proposal(self):
         pass
 
     def handle_acceptance(self, prop, state):
@@ -329,7 +329,7 @@ class MetropolisProcess(object):
         return u < min(score, 1)
 
     def step(self):
-        prop, score = self.proposal(self.state)  # no side effects here, should be totally based on current state
+        prop, score = self.proposal()  # no side effects here, should be totally based on current state
 
         if self.accept_reject(score):  # no side effects here
             # proposal accepted!
@@ -337,13 +337,20 @@ class MetropolisProcess(object):
         else:
             self.handle_rejection(prop, self.state)  # side effects also here
 
+    def check_connected(self, state, node_id, old_color):
 
-class PrecintFlowPopulationBalance(MetropolisProcess):
-    # TODO perhaps stat_tally should go in stead instead
+        # TODO change this to a set
+        proposed_smaller = state.graph.subgraph(
+            [i for i in state.color_to_node[old_color] if i != node_id])  # the graph that lost a node
+        return len(proposed_smaller) and nx.is_connected(proposed_smaller)
+
+
+class PrecintFlow(MetropolisProcess):
+    # TODO perhaps stat_tally should go in here instead
 
     # make proposals on what maximizes the L2 norm of a statistic
-    def __init__(self, state, statistic='population', center=(0, 0), beta=1e-8):
-        super().__init__(state)  # TODO am i doing this right in py36?
+    def __init__(self, state, statistic='population', center=(0, 0), lmda=1e-8):
+        super().__init__(state)
         self.statistic = statistic
         self.state.involution = 1  # also do involutions
         self.center = center
@@ -352,8 +359,11 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
         self.ideal_statistic = sum([self.state.node_data[node_id][self.statistic]
                                     for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
         # assumes balance
-        self.beta = beta  # used to normalize the - rigorous way to set this? rule of 0.23?
+        self.lmda = lmda  # used to normalize the - rigorous way to set this? rule of 0.23?
         self.score_log = []
+
+    def score_to_prob(self, score):
+        return exp(-0.5*self.lmda*score)
 
     def make_involution_lookup_naive(self):
         self.involution_lookup = dict()
@@ -377,33 +387,29 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
                 self.involution_lookup[edge] = -1
                 self.involution_lookup[(edge[1], edge[0])] = 1
 
-    def get_involution(self, edge):
+    def get_involution(self, state, edge):
         # edge is (node_id, node_id) - need to return in correct order?
-        return self.involution_lookup[
-                   edge] * self.state.involution  # each edge is stored twice, I guess, because we're not certain how it'll be looked up
+        return self.involution_lookup[edge] * state.involution
+
+        # each edge is stored twice, I guess, because we're not certain how it'll be looked up
         # but if its state doesn't match the involution state, we need to flip the order
 
     # @Decorators.contested_edges_updater # we will figure this out later
-    def proposal(self, state=None):
+
+
+    def handle_rejection(self, prop, state):
+        state.involution *= -1
+        # TODO refactor state_log to allow different types of events
+
+    def get_directed_edges(self, state):
+        # does NOT do any checks for connected components, etc
+        return [(edge[1], edge[0]) if self.get_involution(state, edge) == -1 else edge for edge in state.contested_edges]
+
+
+    def proposal(self, state):
         # pick a conflicted edge at random. since this is symmetric under involution, no need to compute Q(z,z')/Q(z',z).
 
-        if not hasattr(state, 'contested_edges'):
-            state.contested_edges = contested_edges_naive(state)
-            state.contested_edges_updated = state.iteration  # set to current iteration
-
-        # this may be an empty list if it's already been updated
-        for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
-            # move is provided as (node_id, color_id)
-            neighbors = state.graph.edges(node_id)
-            # edges to add
-            state.contested_edges.update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
-            # edges to remove
-            state.contested_edges.difference_update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
-
-        #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
-        state.contested_edges_updated = state.iteration
+        update_contested_edges(state)
 
         # TODO do we need to find Q(x,x') here since we're restricting to states that don't disconnect the graph?
         # don't think so
@@ -411,71 +417,18 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
                               len(state.contested_edges))  # TODO this is currently an O(n) operation technically,
 
         for edge in edges:
-            iedge = (edge[1], edge[0]) if self.get_involution(edge) == -1 else edge
-            old_color, new_color = state.node_to_color[iedge[0]], state.node_to_color[iedge[1]]  # for clarity
-            proposed_smaller = state.graph.subgraph(
-                [i for i in state.color_to_node[old_color] if i != iedge[0]])  # the graph that lost a node
+            iedge = (edge[1], edge[0]) if self.get_involution(state, edge) == -1 else edge
+            old_color, new_color = self.state.node_to_color[iedge[0]], self.state.node_to_color[iedge[1]]  # for clarity
+            proposed_smaller = self.state.graph.subgraph(
+                [i for i in self.state.color_to_node[old_color] if i != iedge[0]])  # the graph that lost a node
             if not len(proposed_smaller) or not nx.is_connected(
                     proposed_smaller):  # len(proposed_smaller) checks we didn't eliminate the last node in district
                 continue  # can't disconnect districts or eliminate districts entirely
 
-            score = self.score_proposal(iedge[0], old_color, new_color, state)
+            score = self.score_proposal(iedge[0], old_color, new_color, self.state)
             return (iedge[0], new_color), score
         raise RuntimeError("Exceeded tries to find a proposal")
 
-    def proposal_tempered(self, state=None):
-        if not hasattr(state, 'contested_edges'):
-            state.contested_edges = contested_edges_naive(state)
-            state.contested_edges_updated = state.iteration  # set to current iteration
-
-        # this may be an empty list if it's already been updated
-        for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
-            # move is provided as (node_id, color_id)
-            neighbors = state.graph.edges(node_id)
-            # edges to add
-            state.contested_edges.update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
-            # edges to remove
-            state.contested_edges.difference_update(
-                {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
-
-        #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
-        state.contested_edges_updated = state.iteration
-
-        proposals = defaultdict(int)
-        for edge in state.graph.edges:
-            if (
-                    min(edge),
-                    max(edge)) in state.contested_edges:  # do we have to do min/max, or will it keep it consistent?
-
-                # make a copy of edge with the correct ordering
-                iedge = (edge[1], edge[0]) if self.get_involution(edge) == -1 else edge
-
-                old_color = state.node_to_color[iedge[0]]  # find the district that the original belongs to
-                new_color = state.node_to_color[iedge[1]]
-                proposed_smaller = state.graph.subgraph(
-                    [i for i in state.color_to_node[old_color] if i != iedge[0]])  # the graph that lost a node
-                # proposed_bigger = state.graph.subgraph(state.color_to_node[iedge[1]] + [iedge[0]])
-                if not len(proposed_smaller) or not nx.is_connected(
-                        proposed_smaller):  # len(proposed_smaller) checks we didn't eliminate the last node in district
-                    continue  # can't disconnect districts
-
-                # TODO population constraint enforcement - optional, min/max check
-                # TODO constraint on compactness -
-                # TODO constraint on traversals - figure out later
-
-                score = self.score_proposal(iedge[0], old_color, state.node_to_color[iedge[1]],
-                                            state)  # smaller score is better
-                proposals[(iedge[0],
-                           new_color)] += score  # in case multiple valid contested edges for one node, we want to sum them up
-
-        # prop_sum = sum(proposals.values())
-        # pick a proposal
-        prop_keys_list = list(proposals.keys())
-
-        idx = np.random.choice(range(len(prop_keys_list)), p=[i / prop_sum for i in proposals.values()])
-        choice = prop_keys_list[idx]
-        return choice, proposals[choice]  # proposal, score
 
     def score_proposal(self, node_id, old_color, new_color, state):
         # we want to MINIMIZE score
@@ -494,7 +447,7 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
 
         self.score_log.append(new_score - current_score)  # for debugging purposes
 
-        return np.exp(-1 * (new_score - current_score) * self.beta)  # TODO double check the sign here
+        return np.exp(-1 * (new_score - current_score) * self.lmbda)  # TODO double check the sign here
 
     def score_proposal_old(self, node_id, old_color, new_color, state):
         # scores based on summed L2 norm of population (so an even spread will minimize)
@@ -507,17 +460,87 @@ class PrecintFlowPopulationBalance(MetropolisProcess):
             old_color] ** 2 + sum_smaller ** 2 + sum_larger ** 2
         # print(np.sqrt(new_score)-np.sqrt(current_score))
         return np.exp((np.sqrt(new_score) - np.sqrt(current_score)) / 5000)
+#
+#         # TODO this feels clumsy, mostly just for demonstration purposes
+#
+#     # scores based on
+#
+#
+class PrecintFlowTempered(PrecintFlow):
 
-        # TODO this feels clumsy, mostly just for demonstration purposes
 
-    def handle_rejection(self, prop, state):
-        state.involution *= -1
-        # TODO refactor state_log to allow different types of events
+    def reverse_proposal_prob(self, state, proposal):
+        node_id, old_color, new_color = proposal
+        new_state = copy.deepcopy(state)
+        new_state.involution *= -1 # involve
+        new_state.flip(node_id, new_color)
 
-class PrecintFlowTempered(PrecintFlowPopulationBalance):
+        return self.get_proposals(new_state)
 
-    # only change here is to tempering
 
+        # finds probability of proposing x' -> x
+
+    def score_proposal(self, node_id, old_color, new_color, state):
+        update_perimeter_aggressive(state)
+        return compactness_score((node_id, old_color, new_color))
+
+
+    def proposal(self, state):
+
+        # get all the proposals, with their associated probabilities
+        proposals = self.get_proposals(state)
+        # pick a proposal
+        proposal, q = self.pick_proposal(proposals)
+        reverse_proposals = self.reverse_proposal_prob(state, proposal)
+        q_prime = reverse_proposals[proposal]
+
+        score = self.score_proposal(proposal[0], proposal[1], proposal[2], state)
+
+
+        return proposal, q/q_prime*exp(-score*self.lmda)
+
+
+
+    def pick_proposal(self, proposals):
+
+        threshold = np.random.random()
+        cum_sum = 0
+        for node_id, prob in proposals:
+            cum_sum += prob
+            if cum_sum >= threshold:
+                return node_id, prob
+
+
+    def get_proposals(self, state=None):
+
+        update_contested_edges(state)
+
+        proposals = defaultdict(int)
+        for iedge in self.get_directed_edges(state):
+
+                old_color = state.node_to_color[iedge[0]]  # find the district that the original belongs to
+                new_color = state.node_to_color[iedge[1]]
+                self.check_connected(state, iedge[0], old_color)
+
+                # TODO population constraint enforcement - optional, min/max check
+                # TODO constraint on compactness -
+                # TODO constraint on traversals - figure out later
+
+                score = self.score_proposal(iedge[0], old_color, state.node_to_color[iedge[1]],
+                                            state)  # smaller score is better
+                proposals[(iedge[0], old_color, new_color)] += score
+
+        # pick a proposal - this assures ordering
+        prop_keys_list = list(proposals.keys())
+        probs = [self.score_to_prob(proposals[i]) for i in prop_keys_list] #
+        prob_sum = sum(probs)
+
+        # idx = np.random.choice(range(len(prop_keys_list)), p=[i /prob_sum for i in probs])
+        # choice = prop_keys_list[idx]
+
+        # return choice, probs[idx]  # proposal, probability
+        # return zip(prop_keys_list, [prob/prob_sum for prob in probs])
+        return {prop:prob/prob_sum for prop, prob in zip(prop_keys_list, probs)}
 
 
 
@@ -593,20 +616,76 @@ def perimeter_naive(state):
     # requires that contested edges are updated
 
 
-def update_perimeter(state):
+
+def update_perimeter_aggressive(state):
+
+    # this version assumes that this will get run EVERY time a node is flipped
+    update_contested_edges(state) # guarantee contested edges updated before proceeding
+
     if not hasattr(state, 'district_to_perimeter'):
         state.district_to_perimeter = perimeter_naive(state)
         state.perimeter_updated = state.iteration  # set to current iteration
 
     for node_id, old_color, new_color in state.state_log[state.perimeter_updated:]:
-        # by definition, add any edges between the old_color and the recolored_node
 
-        state.district_to_perimeter[old_color] += state.graph.edges[node_id]
+        for neighbor in state.graph.neighbors(node_id):
+            if neighbor in state.color_to_node[new_color]:
+                # we need to reduce the perimeter of new_color by their shared amount
+                state.district_to_perimeter[new_color] -= state.graph.edges[(node_id, neighbor)]['BorderLength']
 
-    # districts_to_recompute = {new_color for node_id, old_color, new_color in state.state_log[state.perimeter_updated:]}
+            elif neighbor in state.color_to_node[old_color]:
+                # we need to increase the perimeter of old_color by their shared amount
+                state.district_to_perimeter[old_color] += state.graph.edges[(node_id, neighbor)]['BorderLength']
 
-    # brute-force recomputation of districts that we've modified
-    # for district_id in districts_to_recompute:
+            else:
+                # we need to increase the perimeter of new_color AND decrease of old color. no change to the perimeter of the 3rd district
+                state.district_to_perimeter[new_color] += state.graph.edges[(node_id, neighbor)]['BorderLength']
+                state.district_to_perimeter[old_color] -= state.graph.edges[(node_id, neighbor)]['BorderLength']
 
     state.perimeter_updated = state.iteration
 
+def update_contested_edges(state):
+    if not hasattr(state, 'contested_edges'):
+        state.contested_edges = contested_edges_naive(state)
+        state.contested_edges_updated = state.iteration  # set to current iteration
+
+    # this may be an empty list if it's already been updated
+    for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
+        # move is provided as (node_id, color_id)
+        neighbors = state.graph.edges(node_id)
+        # edges to add
+        state.contested_edges.update(
+            {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
+        # edges to remove
+        state.contested_edges.difference_update(
+            {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
+
+    #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
+    state.contested_edges_updated = state.iteration
+
+
+def compactness_score(state, proposal):
+    prop_node, old_color, new_color = proposal # unpack
+    score, score_prop = 0, 0
+
+    area_prop = state.graph.nodes()[prop_node]['Area'] if 'Area' in state.graph.nodes()[prop_node]['Area'] else 1
+
+    perim_smaller = state.district_to_perimeter[old_color]
+    area_smaller = sum([(state.graph.nodes()[node_id]['Area'] if 'Area' in state.graph.nodes()[node_id] else 1)
+                     for node_id in state.color_to_node[old_color]]) # if we don't have an Area, just weight evenly
+
+    perim_larger = state.district_to_perimeter[new_color]
+    area_larger = sum([(state.graph.nodes()[node_id]['Area'] if 'Area' in state.graph.nodes()[node_id] else 1)
+                     for node_id in state.color_to_node[new_color]]) # if we don't have an Area, just weight evenly
+
+    node_neighbors = state.graph.neighbors(prop_node)
+
+    perim_larger_new = perim_larger + sum([state.graph.edges()[(prop_node, other_node)] for other_node in node_neighbors
+                                           if other_node not in state.color_to_node[new_color]])
+    perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)] for other_node in node_neighbors
+                                           if other_node not in state.color_to_node[old_color]])
+
+    score_old = perim_smaller**2/area_smaller + perim_larger**2/area_larger
+    score_new = perim_smaller_new**2/(area_smaller-area_prop) + perim_larger_new**2/(area_larger+area_prop)
+
+    return score_new-score_old # the delta
