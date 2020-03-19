@@ -291,6 +291,7 @@ class PrecintFlow(MetropolisProcess):
         # self.score_log = []
 
         self._proposal_state = copy.deepcopy(self.state)
+        self._proposal_state.involution *= -1 # should be opposite of original state
 
     def score_to_prob(self, score):
         return exp(-0.5*self.lmda*score)
@@ -431,8 +432,8 @@ class PrecintFlowTempered(PrecintFlow):
 
 
         self._proposal_state.flip(node_id, new_color)
-        self._proposal_state.involution *=-1
-        self._proposal_state.flip(node_id, new_color)
+        # self._proposal_state.involution *=-1
+        # self._proposal_state.flip(node_id, new_color)
         reverse_proposals = self.get_proposals(self._proposal_state)
 
         # TODO small issue - this will include proposals that disconnect the graph
@@ -450,10 +451,18 @@ class PrecintFlowTempered(PrecintFlow):
         except KeyError:
             return proposal, 0 # sometimes reverse is not contained in proposals list - possible bug?
 
+        # q_prime = reverse_proposals[(node_id, new_color, old_color)]
+        # score = self.score_proposal(node_id, old_color, new_color, state)
+        # return proposal, q_prime/q*exp(-score*self.lmda)
 
-    def handle_acceptance(self, prop, state):
-        super().handle_acceptance(prop, state)
-        # self._proposal_state.involution *= -1 # unflip the involution so it matches pre
+    # def handle_acceptance(self, prop, state):
+    #     super().handle_acceptance(prop, state)
+    #     self._proposal_state.involution *= -1 # unflip the involution so it matches previous state
+
+    def handle_rejection(self, prop, state):
+        super().handle_rejection(prop, state)
+        self._proposal_state.flip(prop[0], prop[1]) # flip back to old color
+        self._proposal_state.involution *= -1
 
     def pick_proposal(self, proposals):
 
@@ -468,7 +477,8 @@ class PrecintFlowTempered(PrecintFlow):
                 counter +=1
                 proposals[proposal] = 0 # this wasn't connected, so we can't pick it
                 if counter >= len(proposals):
-                    raise ValueError("Could not find connected proposal")
+                    return None, 0 # not actually a valid proposal, guaranteed to result in involution
+                    # raise ValueError("Could not find connected proposal")
 
                 proposals[proposal] = 0 # probability is zero if it's not connected
 
@@ -508,8 +518,7 @@ class PrecintFlowTempered(PrecintFlow):
                 # TODO constraint on compactness -
                 # TODO constraint on traversals - figure out later
 
-                score = self.score_proposal(iedge[0], old_color, state.node_to_color[iedge[1]],
-                                            state)  # smaller score is better
+                score = self.score_proposal(iedge[0], old_color, new_color, state)  # smaller score is better
                 proposals[(iedge[0], old_color, new_color)] += score
 
         # pick a proposal - this assures ordering
@@ -675,7 +684,7 @@ def cut_length_score(state, proposal):
     # delta in score
     neighbors = state.graph.neighbors(proposal[0])
     # return len([i for i in neighbors if i in state.color_to_node[proposal[2]]]) - len([i for i in neighbors if i in state.color_to_node[proposal[1]]])
-    return len([i for i in neighbors if i in state.color_to_node[proposal[1]]]) - len([i for i in neighbors if i in state.color_to_node[proposal[2]]])
+    return (len([i for i in neighbors if i in state.color_to_node[proposal[1]]]) - len([i for i in neighbors if i in state.color_to_node[proposal[2]]]))*-1
 
 from collections import deque
 def connected_breadth_first(state, node_id, old_color):
