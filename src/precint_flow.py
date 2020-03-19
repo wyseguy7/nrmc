@@ -10,6 +10,10 @@ import collections
 # Sort out state initializer, object loader
 # Details on COM flow algorithm
 
+
+# BFS on neighbors of potentially disconnected
+
+
 ####### Meeting notes 2019-12-06:
 # Make 'state' with listeners that track need for metadata
 
@@ -225,6 +229,7 @@ class MetropolisProcess(object):
     def __init__(self, state):
         self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
+        self.score_log = [] # for debugging
 
     def proposal(self):
         pass
@@ -247,11 +252,19 @@ class MetropolisProcess(object):
 
         if self.accept_reject(prob):  # no side effects here
             # proposal accepted!
+
             self.handle_acceptance(prop, self.state)  # now side effects
         else:
             self.handle_rejection(prop, self.state)  # side effects also here
 
+
+
     def check_connected(self, state, node_id, old_color):
+        return connected_breadth_first(state, node_id, old_color)
+
+
+    def check_connected_naive(self, state, node_id, old_color):
+        # legacy method that uses networkx method
 
         # TODO change this to a set
         proposed_smaller = state.graph.subgraph(
@@ -275,7 +288,9 @@ class PrecintFlow(MetropolisProcess):
         #                             for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
         # assumes balance
         self.lmda = lmda  # used to normalize the - rigorous way to set this? rule of 0.23?
-        self.score_log = []
+        # self.score_log = []
+
+        self._proposal_state = copy.deepcopy(self.state)
 
     def score_to_prob(self, score):
         return exp(-0.5*self.lmda*score)
@@ -315,7 +330,7 @@ class PrecintFlow(MetropolisProcess):
 
 
     def handle_rejection(self, prop, state):
-        print("Involution on step {}".format(state.iteration))
+        # print("Involution on step {}".format(state.iteration))
         state.involution *= -1
         # TODO refactor state_log to allow different types of events
 
@@ -363,7 +378,7 @@ class PrecintFlow(MetropolisProcess):
         # TODO should beta be owned by state, or by the Markov process?
         # technically could be state-dependent when we have parallel tempering
 
-        self.score_log.append(new_score - current_score)  # for debugging purposes
+        # self.score_log.append(new_score - current_score)  # for debugging purposes
 
         return np.exp(-1 * (new_score - current_score) * self.lmda)  # TODO double check the sign here
 
@@ -395,10 +410,15 @@ class PrecintFlowTempered(PrecintFlow):
     #
     #     return self.get_proposals(new_state)
 
+    def step(self):
+        super().step()
+        self.score_log.append(len(self.state.contested_edges))  # TODO for debugging only
+
 
     def score_proposal(self, node_id, old_color, new_color, state):
         # update_perimeter_aggressive(state)
-        return compactness_score(state, (node_id, old_color, new_color))
+        # return compactness_score(state, (node_id, old_color, new_color))
+        return cut_length_score(state, (node_id, old_color, new_color))
 
 
     def proposal(self, state):
@@ -409,10 +429,20 @@ class PrecintFlowTempered(PrecintFlow):
         proposal, q = self.pick_proposal(proposals)
         node_id, old_color, new_color = proposal
 
-        new_state = copy.deepcopy(state)
-        new_state.flip(node_id, new_color)
-        new_state.involution *=-1
-        reverse_proposals = self.get_proposals(new_state)
+
+        self._proposal_state.flip(node_id, new_color)
+        self._proposal_state.involution *=-1
+        self._proposal_state.flip(node_id, new_color)
+        reverse_proposals = self.get_proposals(self._proposal_state)
+
+        # TODO small issue - this will include proposals that disconnect the graph
+        # so we are providing a strict underestimate of q_prime - will this matter?
+
+        # TODO doing it this way is incredibly expensive - let's just retain one 'fake state' and move it around?
+#         new_state = copy.deepcopy(state)
+#         new_state.flip(node_id, new_color)
+#         new_state.involution *=-1
+#         reverse_proposals = self.get_proposals(new_state)
         try:
             q_prime = reverse_proposals[(node_id, new_color, old_color)]
             score = self.score_proposal(node_id, old_color, new_color, state)
@@ -421,15 +451,43 @@ class PrecintFlowTempered(PrecintFlow):
             return proposal, 0 # sometimes reverse is not contained in proposals list - possible bug?
 
 
+    def handle_acceptance(self, prop, state):
+        super().handle_acceptance(prop, state)
+        # self._proposal_state.involution *= -1 # unflip the involution so it matches pre
+
     def pick_proposal(self, proposals):
 
-        threshold = np.random.random()
-        cum_sum = 0
-        keys = sorted(proposals.keys())
-        for key in keys:
-            cum_sum += proposals[key]
-            if cum_sum >= threshold:
-                return key, proposals[key]
+        # threshold = np.random.random()
+        # keys = sorted(proposals.keys())
+        counter = 0
+        while True:
+            proposal = random.choices(list(proposals.keys()), weights=proposals.values(), k=1)[0]
+            if self.check_connected(self.state, proposal[0], proposal[1]):
+                return proposal, proposals[proposal]
+            else:
+                counter +=1
+                proposals[proposal] = 0 # this wasn't connected, so we can't pick it
+                if counter >= len(proposals):
+                    raise ValueError("Could not find connected proposal")
+
+                proposals[proposal] = 0 # probability is zero if it's not connected
+
+
+
+        # for key in keys:
+        #     cum_sum += proposals[key]
+        #     if cum_sum >= threshold:
+        #         if self.check_connected(self.state, key[0], key[1]):
+        #             return key, proposals[key]
+        #         else:
+        #             removed = proposals.pop(key)
+        #             return self.pick_proposal(proposals)
+
+        # # pick the first connected proposal, since5 we failed last time
+        # for key in keys:
+        #     if self.check_connected(self.state, key[0], key[1]):
+        #         return key, proposals[key]
+
 
 
     def get_proposals(self, state=None):
@@ -442,8 +500,9 @@ class PrecintFlowTempered(PrecintFlow):
 
                 old_color = state.node_to_color[iedge[0]]  # find the district that the original belongs to
                 new_color = state.node_to_color[iedge[1]]
-                if not self.check_connected(state, iedge[0], old_color):
-                     continue
+                # check these later
+                # if not self.check_connected(state, iedge[0], old_color):
+                #      continue
 
                 # TODO population constraint enforcement - optional, min/max check
                 # TODO constraint on compactness -
@@ -611,3 +670,41 @@ def compactness_score(state, proposal):
 
     # return score_old - score_new # the delta
     return score_new-score_old
+
+def cut_length_score(state, proposal):
+    # delta in score
+    neighbors = state.graph.neighbors(proposal[0])
+    # return len([i for i in neighbors if i in state.color_to_node[proposal[2]]]) - len([i for i in neighbors if i in state.color_to_node[proposal[1]]])
+    return len([i for i in neighbors if i in state.color_to_node[proposal[1]]]) - len([i for i in neighbors if i in state.color_to_node[proposal[2]]])
+
+from collections import deque
+def connected_breadth_first(state, node_id, old_color):
+
+    district_nodes = state.color_to_node[old_color].difference({node_id}) # all of the old_color nodes without the one we're removing
+    to_connect = district_nodes.intersection(set(state.graph.neighbors(node_id))) # need to show each of these are still connected
+
+    if not to_connect: # TODO should this check get run here or should it be guaranteed?
+        return False # we deleted the last node of a district, this is illegal
+
+    init = to_connect.pop()
+    to_search = [init] # ordered list of nodes available to search
+    visited_set = {init}
+    while True: # there are still nodes we haven't found
+
+        # print(to_search)
+
+        # evaluate halting criteria
+        if not to_connect - visited_set: # we visited all of the nodes we needed to search
+            return True
+        if not to_search: # no more nodes available to search
+            # raise ValueError("")
+            return False
+
+        # new nodes that we haven't seen yet
+        new_neighbors = set(state.graph.neighbors(to_search.pop())).intersection(district_nodes).difference(visited_set)
+
+        priority_neighbors = to_connect.intersection(new_neighbors)
+        nonpriority_neighbors = new_neighbors - priority_neighbors
+        visited_set.update(new_neighbors) # seen new neighbors
+        to_search.extend(nonpriority_neighbors)
+        to_search.extend(priority_neighbors) # ensure that priority neighbors are at the top of the queue
