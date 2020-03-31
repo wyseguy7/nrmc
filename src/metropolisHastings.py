@@ -33,6 +33,9 @@ def run(state, proposal, info):
     writer.recordStateData(initialStep, state, info)
         
     for step in range(initialStep, finalStep):
+        if step%1000==0:
+            print(step) # TODO replace with real logging
+
         state["step"] = step
         (move, p) = proposal(state, info)
         u = rng.random()
@@ -45,7 +48,7 @@ def run(state, proposal, info):
         else:
             # print("flip step", step, p, u)
             state["flowDir"] *= -1
-            writer.recordState(step, state, info)
+            writer.recordState(step, state, info) # TODO replace with buffer - super expensive to do like this
             writer.recordStateData(step, state, info)
     print(state["flipCountsPerNode"])
 
