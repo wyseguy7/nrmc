@@ -1,7 +1,13 @@
 square lattice example:
 2 districts
+_ no tempering; no skew
+_ tempering no skew
 _ precinct flow (tempering)
 x COM flow (tempering)
+
+Question -- after 1 million runs, what is the distribution of the front:
+	i) for each node, find the number of times it has flipped
+	ii) for each node, find the number samples it lies on the boundary
 
 3 districts (need to think about energy)
 (energy -- add population and isoperimetric)
