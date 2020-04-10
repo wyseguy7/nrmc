@@ -5,6 +5,11 @@ _ tempering no skew
 _ precinct flow (tempering)
 x COM flow (tempering)
 
+===========
+Make a heat map of which nodes have been flipped for all 7 runs
+Make a heat maps of which nodes are on the boundary for all 7 runs
+===========
+
 Question -- after 1 million runs, what is the distribution of the front:
 	i) for each node, find the number of times it has flipped
 	ii) for each node, find the number samples it lies on the boundary
