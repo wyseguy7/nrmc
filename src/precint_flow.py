@@ -20,6 +20,7 @@ import itertools
 
 # state object that allows arbitrary extensions
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
+CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 class Decorators(object):
@@ -294,10 +295,19 @@ def contested_edges_naive(state):
 # we can either subclass this object or attach a bunch of functions to it, either is fine really
 class MetropolisProcess(object):
 
-    def __init__(self, state):
+    def __init__(self, state, beta=1, measure_beta=1):
         self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
         self.score_log = [] # for debugging
+        self.beta = 1
+        self.measure_beta = 1
+
+    def score_to_prob(self, score):
+        return exp(-0.5*self.measure_beta*score)
+
+    def score_to_proposal_prob(self, score):
+        return exp(-0.5*score*self.beta)
+
 
     def proposal(self):
         pass
@@ -340,6 +350,65 @@ class MetropolisProcess(object):
             [i for i in state.color_to_node[old_color] if i != node_id])  # the graph that lost a node
         return len(proposed_smaller) and nx.is_connected(proposed_smaller)
 
+class COMTrackerMixin(MetropolisProcess):
+    # adds tracking for Center-of-Mass statistic
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.com_log = []
+
+    def step(self):
+        super().step()
+        update_center_of_mass(self.state)
+        self.com_log.append(self.state.com_centroid)
+
+def calculate_com_naive(state, weight_attribute=None):
+    com = {}
+    total_weight = {}
+    for district_id, nodes in state.color_to_node.items():
+        if weight_attribute is None:
+            weights = {node_id: 1 for node_id in nodes}
+        else:
+            weights = {state.graph.nodes()[node_id][weight_attribute] for node_id in nodes}
+
+        total_weight[district_id] = sum(weights)
+        com[district_id] = (sum([i['Centroid'][j]*weights[i] for i in nodes])/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH))
+    return com, total_weight
+
+
+def calculate_com_one_step(state, proposal, weight_attribute=None):
+
+    node_id, old_color, new_color = proposal
+
+    com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting?
+    total_weight = copy.deepcopy(state.com_total_weight)
+    node = state.graph.nodes()[node_id] # how expensive is this lookup, anyways?
+
+    weight = node[weight_attribute] if weight_attribute is not None else 1
+
+    for j in range(CENTROID_DIM_LENGTH):
+        com_centroid[new_color][j] = (node[j] * weight + com_centroid[new_color][j] * total_weight[new_color]) / (
+                total_weight[new_color] + weight)
+        com_centroid[old_color][j] = (-node[j] * weight + com_centroid[old_color][j] * total_weight[old_color]) / (
+                total_weight[old_color] - weight)
+    total_weight[new_color] = total_weight + weight
+    total_weight[old_color] = total_weight - weight
+
+    return com_centroid, total_weight
+
+def update_center_of_mass(state):
+
+    if not hasattr(state, 'com_centroid'):
+        state.com_centroid, state.com_total_weight = calculate_com_naive(state)
+        state.com_updated = state.iteration
+
+    for i in state.move_log[state.com_updated:]:
+        if i is not None:
+            state.com_centroid, state.com_total_weight = calculate_com_one_step(state, i)
+
+    state.com_updated = state.iteration
+
+
 
 class PrecintFlow(MetropolisProcess):
     # TODO perhaps stat_tally should go in here instead
@@ -363,9 +432,6 @@ class PrecintFlow(MetropolisProcess):
         self._proposal_state = copy.deepcopy(self.state)
         self._proposal_state.involution *= -1 # should be opposite of original state
         self._proposal_state.log_contested_edges = False # don't waste time logging this
-
-    def score_to_prob(self, score):
-        return exp(-0.5*self.measure_beta*score)
 
     def make_involution_lookup_naive(self):
         self.involution_lookup = dict()
@@ -475,13 +541,9 @@ class PrecintFlow(MetropolisProcess):
 #
 class SingleNodeFlip(MetropolisProcess):
 
-    def __init__(self, *args, beta=0.5, minimum_population=10, **kwargs):
+    def __init__(self, *args, minimum_population=10, **kwargs):
         super().__init__(*args, **kwargs)
-        self.beta = beta
         self.minimum_population = minimum_population
-
-    def score_to_prob(self, score):
-        return exp(-0.5*self.beta*score)
 
     def proposal(self, state):
         scored_proposals = {}
@@ -517,16 +579,10 @@ class SingleNodeFlip(MetropolisProcess):
 
 class SingleNodeFlipTempered(SingleNodeFlip):
 
-    def __init__(self, *args, measure_beta=0.5, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.measure_beta = measure_beta # TODO we should rename the above beta to measure beta
         self._proposal_state = copy.deepcopy(self.state) # TODO maybe rip this out into a mixin for
 
-    def score_to_prob(self, score):
-        return exp(-0.5*self.measure_beta*score)
-
-    def score_to_proposal_prob(self, score):
-        return exp(-0.5*score*self.beta)
 
     def handle_rejection(self, prop, state):
         super().handle_rejection(prop, state)
@@ -585,9 +641,6 @@ class PrecintFlowTempered(PrecintFlow):
         # update_perimeter_aggressive(state)
         # return compactness_score(state, (node_id, old_color, new_color))
         return cut_length_score(state, (node_id, old_color, new_color))
-
-    def score_to_proposal_prob(self, score):
-        return exp(-0.5*score*self.beta) # TODO this should really be farther up
 
 
     def proposal(self, state):
