@@ -78,10 +78,11 @@ class State(object):
                 self.stat_tally[stat][district_id] = sum(graph[node_id][stat] for node_id in nodes)
 
         self.tallied_stats = tallied_stats
-        self.log_contested_edges = log_contested_edges
+        self.log_contested_edges = log_contested_edges # rip these out into a mixin?
         self.contested_edge_counter = collections.defaultdict(int)
         self.contested_node_counter = collections.defaultdict(int)
 
+        self.check_connectedness = True
 
         self.connected_true_counter = [] # TODO remove after finished debugging
         self.connected_false_counter = []
@@ -90,8 +91,7 @@ class State(object):
         self.node_to_start_stop = dict()
 
     def check_connected_lookup(self, proposal):
-
-        # remove any chains that didn't
+        # TODO finish this off so we can use it
 
         node_id, old_color, new_color = proposal
 
@@ -295,12 +295,16 @@ def contested_edges_naive(state):
 # we can either subclass this object or attach a bunch of functions to it, either is fine really
 class MetropolisProcess(object):
 
-    def __init__(self, state, beta=1, measure_beta=1):
+    def __init__(self, state, beta=1, measure_beta=1, minimum_population = None, log_com = True):
         self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
         self.score_log = [] # for debugging
-        self.beta = 1
-        self.measure_beta = 1
+        self.beta = beta
+        self.measure_beta = measure_beta
+        self.minimum_population = minimum_population
+        self.log_com = log_com
+        if log_com:
+            self.com_log = []
 
     def score_to_prob(self, score):
         return exp(-0.5*self.measure_beta*score)
@@ -308,12 +312,57 @@ class MetropolisProcess(object):
     def score_to_proposal_prob(self, score):
         return exp(-0.5*score*self.beta)
 
+    def proposal_checks(self, state, proposal):
+        # checked against each proposal in get_proposals
+        node_id, new_color, old_color = proposal # should really make a named tuple for this, tired of unpacking
+
+        if self.minimum_population is not None and not check_population(state, old_color, self.minimum_population):
+            return False
+
+        if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
+                                               and simply_connected(state, node_id,old_color, new_color)):
+            return False
+
+        return True
+
+    def score_proposal(self, node_id, old_color, new_color, state):
+        return cut_length_score(state, (node_id, old_color, new_color))
+
+    def get_directed_edges(self, state):
+        # default behavior gets all edges in each direction
+        update_contested_edges(state)
+        return itertools.chain(state.contested_edges, [(edge[1], edge[0]) for edge in state.contested_edges])
+
+    def get_proposals(self, state):
+        # produces a mapping {proposal: score} for each edge in get_directed_edges
+
+        scored_proposals = {}
+
+        for node_id, neighbor in self.get_directed_edges(state):
+            old_color = state.node_to_color[node_id]
+            new_color = state.node_to_color[neighbor]
+
+            if (node_id, old_color, new_color) in scored_proposals:
+                continue # already scored this proposal
+
+            if not self.proposal_checks(state, (node_id, old_color, new_color)):
+                continue # not a valid proposal
+
+            scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
+
+        return scored_proposals
+
 
     def proposal(self):
-        pass
+        # picks a proposal randomly without any weighting
+        scored_proposals = self.get_proposals(self.state)
+        # score = self.score_proposal()
+        proposal = random.choices(list(scored_proposals.keys()))[0]
+        prob = self.score_to_prob(scored_proposals[proposal])  # should be totally unweighted here
+
+        return proposal, prob
 
     def handle_acceptance(self, prop, state):
-        # state.flip(prop[0], prop[2])  # we can still customize this but this ought to be sufficient for a lot of cases
         state.handle_move(prop)
 
     def handle_rejection(self, prop, state):
@@ -336,7 +385,9 @@ class MetropolisProcess(object):
         else:
             self.handle_rejection(prop, self.state)  # side effects also here
 
-
+        if self.log_com:
+            update_center_of_mass(self.state)
+            self.com_log.append(self.state.com_centroid)
 
     def check_connected(self, state, node_id, old_color, new_color):
         return connected_breadth_first(state, node_id, old_color) and simply_connected(state, node_id, old_color, new_color)
@@ -350,17 +401,41 @@ class MetropolisProcess(object):
             [i for i in state.color_to_node[old_color] if i != node_id])  # the graph that lost a node
         return len(proposed_smaller) and nx.is_connected(proposed_smaller)
 
-class COMTrackerMixin(MetropolisProcess):
-    # adds tracking for Center-of-Mass statistic
+class TemperedProposalMixin(MetropolisProcess):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.com_log = []
+        self._proposal_state = copy.deepcopy(self.state)
+        self._proposal_state.involution *= -1 # should be opposite of original state
+        self._proposal_state.log_contested_edges = False # don't waste time logging this
 
-    def step(self):
-        super().step()
-        update_center_of_mass(self.state)
-        self.com_log.append(self.state.com_centroid)
+
+    def proposal(self, state):
+        # TODO this is common with SingleNodeFlipTempered, perhaps split this out
+        scored_proposals = self.get_proposals(self.state)
+        proposal_probs = {k:self.score_to_proposal_prob(v) for k,v in scored_proposals.items()}
+
+        proposal = random.choices(list(proposal_probs.keys()),
+                                  weights=proposal_probs.values())[0]
+
+        self._proposal_state.handle_move(proposal)
+        if not self.check_connected(state, *proposal) and simply_connected(state, *proposal):
+            return proposal, 0 # always zero
+
+        reverse_proposals = self.get_proposals(self._proposal_state)
+        reverse_proposal_probs = {k:self.score_to_proposal_prob(v) for k,v in reverse_proposals.items()}
+
+        try:
+            # TODO this should match q, q_prime nomenclature in superclass - still correct, need to swap names
+            q = reverse_proposal_probs[(proposal[0], proposal[2], proposal[1])]/sum(reverse_proposal_probs.values())
+            q_prime = proposal_probs[proposal]/sum(proposal_probs.values())
+            prob = self.score_to_prob(scored_proposals[proposal])*q/q_prime
+            return proposal, prob
+        except KeyError:
+            return proposal, 0 # this happens sometimes but probably shouldn't for single node flip
+
+
+
 
 def calculate_com_naive(state, weight_attribute=None):
     com = {}
@@ -414,7 +489,7 @@ class PrecintFlow(MetropolisProcess):
     # TODO perhaps stat_tally should go in here instead
 
     # make proposals on what maximizes the L2 norm of a statistic
-    def __init__(self, state, statistic='population', center=(0, 0), beta=1e-8, measure_beta=1):
+    def __init__(self, state, statistic='population', center=(0, 0)):
         super().__init__(state)
         self.statistic = statistic
         self.state.involution = 1  # also do involutions
@@ -425,8 +500,6 @@ class PrecintFlow(MetropolisProcess):
         # self.ideal_statistic = sum([self.state.node_data[node_id][self.statistic]
         #                             for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
         # assumes balance
-        self.beta = beta  # used to adjust both the proposal distribution and the probability measure
-        self.measure_beta = measure_beta # used to adjust the energy exclusively
         # self.score_log = []
 
         self._proposal_state = copy.deepcopy(self.state)
@@ -436,18 +509,8 @@ class PrecintFlow(MetropolisProcess):
     def make_involution_lookup_naive(self):
         self.involution_lookup = dict()
         for edge in self.state.graph.edges:  # these edges are presumed undirected, we have to sort out directionality
-            # n1 = self.state.node_data[edge[0]]  # the centerpoint between the two nodes
-            # n2 = self.state.node_data[edge[1]]
             n1 = self.state.graph.nodes()[edge[0]]
             n2 = self.state.graph.nodes()[edge[1]]
-
-            # centroid = ((n1.x+n2.x)/2, (n1.y+n2.y)/2)
-
-            # theta1 = np.math.atan2(n1.y - centroid[1], n1.x - centroid[0])
-            # theta2 = np.math.atan2(n2.y - centroid[1], n2.x - centroid[0])
-
-            # we will always add two entries to the involution lookup per edge
-
             # should this be greater or less than zero?
             if compute_dot_product(n1['Centroid'], n2['Centroid'], center=self.center) >= 0:
                 self.involution_lookup[edge] = 1
@@ -521,24 +584,31 @@ class PrecintFlow(MetropolisProcess):
 
         return np.exp(-1 * (new_score - current_score) * self.beta * self.measure_beta)  # TODO double check the sign here
 
-    def score_proposal_old(self, node_id, old_color, new_color, state):
-        # DEPRECATED
-        # scores based on summed L2 norm of population (so an even spread will minimize)
-        # equivalent to comparing
 
-        current_score = sum([i ** 2 for i in state.stat_tally[self.statistic].values()])
-        sum_smaller = sum([state.node_data[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
-        sum_larger = state.stat_tally[self.statistic][new_color] + state.node_data[node_id][self.statistic]
-        new_score = current_score - state.stat_tally[self.statistic][new_color] ** 2 - state.stat_tally[self.statistic][
-            old_color] ** 2 + sum_smaller ** 2 + sum_larger ** 2
-        # print(np.sqrt(new_score)-np.sqrt(current_score))
-        return np.exp((np.sqrt(new_score) - np.sqrt(current_score)) / 5000)
-#
-#         # TODO this feels clumsy, mostly just for demonstration purposes
-#
-#     # scores based on
-#
-#
+class CenterOfMassFlow(TemperedProposalMixin):
+    def __init__(self, *args, weight_attribute=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.weight_attribute = weight_attribute
+
+    def handle_rejection(self, prop, state):
+        # TODO need to make this cleaner
+
+        super().handle_rejection(prop, state)
+        # print("Involution on step {}".format(state.iteration))
+        state.involution *= -1
+
+
+    # proposal is valid if the shift in center of mass is in the direction of the vector field
+    def proposal_checks(self, state, proposal):
+        if super().proposal_checks(state, proposal):
+            # passed all other checks
+            centroid_new = calculate_com_one_step(state, proposal, self.weight_attribute)
+            return compute_dot_product(state.com_centroid, centroid_new)*state.involution > 0
+            # TODO - is this correct math? do we need to vectorize?
+        else:
+            return False
+
+
 class SingleNodeFlip(MetropolisProcess):
 
     def __init__(self, *args, minimum_population=10, **kwargs):
@@ -631,16 +701,9 @@ class SingleNodeFlipTempered(SingleNodeFlip):
 
 class PrecintFlowTempered(PrecintFlow):
 
-
     def step(self):
         super().step()
         self.score_log.append(len(self.state.contested_edges))  # TODO for debugging only
-
-
-    def score_proposal(self, node_id, old_color, new_color, state):
-        # update_perimeter_aggressive(state)
-        # return compactness_score(state, (node_id, old_color, new_color))
-        return cut_length_score(state, (node_id, old_color, new_color))
 
 
     def proposal(self, state):
@@ -729,9 +792,6 @@ class PrecinctFlowNoConnectedTemper(PrecintFlowTempered):
         return super().get_proposals(state, filter_connected=False)
 
 
-    def pick_proposal(self, proposals):
-        return random.choices(list(proposals.keys()), weights=proposals.values(), k=1)[0] # pick any proposal
-
     def proposal(self, state):
         # TODO this is common with SingleNodeFlipTempered, perhaps split this out
         scored_proposals = self.get_proposals(self.state)
@@ -769,6 +829,8 @@ class LazyInvolutionMixin(MetropolisProcess):
         # TODO rng here
         if np.random.uniform(size=1) < self.involution_rate:
             super().handle_rejection(prop, state) # involve
+        else:
+            self.state.handle_move(None) # only log a non-move
 
         # TODO what sort of tracking needs to be done to ensure that we appropriately measure everything
         # can we adjust the involution rate? if we are rejecting a lot, maybe it's nice to muscle your way through to another macrostate?
