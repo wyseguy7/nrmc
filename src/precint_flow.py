@@ -302,6 +302,9 @@ class MetropolisProcess(object):
         self.beta = beta
         self.measure_beta = measure_beta
         self.minimum_population = minimum_population
+        if not hasattr(state, 'involution'):
+            state.involution = 1 # unless this comes from elsewhere, it should have an involution
+
         self.log_com = log_com
         if log_com:
             self.com_log = []
@@ -389,6 +392,9 @@ class MetropolisProcess(object):
             update_center_of_mass(self.state)
             self.com_log.append(self.state.com_centroid)
 
+        self.score_log.append(len(self.state.contested_edges))  # TODO for debugging only
+
+
     def check_connected(self, state, node_id, old_color, new_color):
         return connected_breadth_first(state, node_id, old_color) and simply_connected(state, node_id, old_color, new_color)
 
@@ -405,10 +411,21 @@ class TemperedProposalMixin(MetropolisProcess):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        self.state.check_connectedness = False # turn this off - we check it differently here
         self._proposal_state = copy.deepcopy(self.state)
-        self._proposal_state.involution *= -1 # should be opposite of original state
+
+        # if involution is set, make it always the opposite
+        self._proposal_state.involution = self.flipped_involution # set to opposite of original
         self._proposal_state.log_contested_edges = False # don't waste time logging this
 
+    @property
+    def flipped_involution(self):
+        return self.state.involution * -1
+
+    def handle_rejection(self, prop, state):
+        super().handle_rejection(prop, state)
+        self._proposal_state.handle_move((prop[0], prop[2], prop[1]))  # undo earlier move
 
     def proposal(self, state):
         # TODO this is common with SingleNodeFlipTempered, perhaps split this out
@@ -435,8 +452,6 @@ class TemperedProposalMixin(MetropolisProcess):
             return proposal, 0 # this happens sometimes but probably shouldn't for single node flip
 
 
-
-
 def calculate_com_naive(state, weight_attribute=None):
     com = {}
     total_weight = {}
@@ -446,8 +461,9 @@ def calculate_com_naive(state, weight_attribute=None):
         else:
             weights = {state.graph.nodes()[node_id][weight_attribute] for node_id in nodes}
 
-        total_weight[district_id] = sum(weights)
-        com[district_id] = (sum([i['Centroid'][j]*weights[i] for i in nodes])/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH))
+        total_weight[district_id] = sum(weights.values())
+        com[district_id] = np.array([sum([state.graph.nodes()[i]['Centroid'][j]*weights[i] for i in nodes]
+                                         )/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH)])
     return com, total_weight
 
 
@@ -455,19 +471,25 @@ def calculate_com_one_step(state, proposal, weight_attribute=None):
 
     node_id, old_color, new_color = proposal
 
-    com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting?
+    com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
     total_weight = copy.deepcopy(state.com_total_weight)
     node = state.graph.nodes()[node_id] # how expensive is this lookup, anyways?
 
     weight = node[weight_attribute] if weight_attribute is not None else 1
 
-    for j in range(CENTROID_DIM_LENGTH):
-        com_centroid[new_color][j] = (node[j] * weight + com_centroid[new_color][j] * total_weight[new_color]) / (
-                total_weight[new_color] + weight)
-        com_centroid[old_color][j] = (-node[j] * weight + com_centroid[old_color][j] * total_weight[old_color]) / (
-                total_weight[old_color] - weight)
-    total_weight[new_color] = total_weight + weight
-    total_weight[old_color] = total_weight - weight
+    com_centroid[new_color] = (node['Centroid'] * weight + com_centroid[new_color]*total_weight[new_color])/(
+            total_weight[new_color] + weight)
+    com_centroid[old_color] = (-node['Centroid'] * weight + com_centroid[old_color]*total_weight[old_color])/(
+            total_weight[old_color] - weight)
+
+
+    # for j in range(CENTROID_DIM_LENGTH):
+    #     com_centroid[new_color][j] = (node[j] * weight + com_centroid[new_color][j] * total_weight[new_color]) / (
+    #             total_weight[new_color] + weight)
+    #     com_centroid[old_color][j] = (-node[j] * weight + com_centroid[old_color][j] * total_weight[old_color]) / (
+    #             total_weight[old_color] - weight)
+    total_weight[new_color] = total_weight[new_color] + weight
+    total_weight[old_color] = total_weight[old_color] - weight
 
     return com_centroid, total_weight
 
@@ -586,9 +608,16 @@ class PrecintFlow(MetropolisProcess):
 
 
 class CenterOfMassFlow(TemperedProposalMixin):
-    def __init__(self, *args, weight_attribute=None, **kwargs):
+    def __init__(self, *args, weight_attribute=None, center=(0,0), **kwargs):
         super().__init__(*args, **kwargs)
+        self.center = center
         self.weight_attribute = weight_attribute
+
+        for state in (self.state, self._proposal_state):
+            for node_id in state.graph.nodes():
+                # TODO parameterize 'Centroid' instead of hardcoding
+                # we need to guarantee these are numpy arrays up front
+                state.graph.nodes()[node_id]['Centroid'] = np.array(state.graph.nodes()[node_id]['Centroid'])
 
     def handle_rejection(self, prop, state):
         # TODO need to make this cleaner
@@ -598,15 +627,61 @@ class CenterOfMassFlow(TemperedProposalMixin):
         state.involution *= -1
 
 
-    # proposal is valid if the shift in center of mass is in the direction of the vector field
-    def proposal_checks(self, state, proposal):
-        if super().proposal_checks(state, proposal):
-            # passed all other checks
-            centroid_new = calculate_com_one_step(state, proposal, self.weight_attribute)
-            return compute_dot_product(state.com_centroid, centroid_new)*state.involution > 0
-            # TODO - is this correct math? do we need to vectorize?
-        else:
-            return False
+    def get_directed_edges(self, state):
+        update_contested_edges(state)
+        update_center_of_mass(state)
+
+        evaluated_props = set()
+        for edge in state.contested_edges:
+
+            # test the default direction - if it isn't valid, return a flipped edge
+            node_id = edge[0] # proposal is make edge[0] the same color as edge[1]
+            old_color = state.node_to_color[edge[0]]
+            new_color = state.node_to_color[edge[1]]
+            # proposal is valid if the shift in center of mass is in the direction of the vector field
+            if (node_id, new_color) in evaluated_props:
+                continue # don't bother with this one, we've already evaluated it
+
+
+            centroid_new, weights_new = calculate_com_one_step(state, (node_id, old_color, new_color), self.weight_attribute)
+            v_1 = centroid_new[new_color] - state.com_centroid[new_color]
+            v_2 = centroid_new[old_color] - state.com_centroid[old_color]
+
+            if  (np.dot(v_1, v_2) * state.involution) > 0:
+                yield edge
+            else:
+                yield (edge[1], edge[0])
+            evaluated_props.add((node_id, new_color))
+
+
+
+class CenterOfMassFlowFixed(CenterOfMassFlow):
+
+    def get_directed_edges(self, state):
+        update_contested_edges(state)
+        update_center_of_mass(state)
+
+        evaluated_props = set()
+        for edge in state.contested_edges:
+
+            # test the default direction - if it isn't valid, return a flipped edge
+            node_id = edge[0] # proposal is make edge[0] the same color as edge[1]
+            old_color = state.node_to_color[edge[0]]
+            new_color = state.node_to_color[edge[1]]
+            # proposal is valid if the shift in center of mass is in the direction of the vector field
+            if (node_id, new_color) in evaluated_props:
+                continue # don't bother with this one, we've already evaluated it
+
+
+            centroid_new, weights_new = calculate_com_one_step(state, (node_id, old_color, new_color), self.weight_attribute)
+            if compute_dot_product(state.com_centroid[new_color], centroid_new[new_color], center=self.center):
+                yield edge
+            else:
+                yield (edge[1], edge[0])
+            evaluated_props.add((node_id, new_color))
+
+
+
 
 
 class SingleNodeFlip(MetropolisProcess):
@@ -642,9 +717,6 @@ class SingleNodeFlip(MetropolisProcess):
     def score_proposal(self, node_id, old_color, new_color, state):
         return cut_length_score(state, (node_id, old_color, new_color))
 
-    def step(self):
-        super().step()
-        self.score_log.append(len(self.state.contested_edges))  # TODO for debugging only
 
 
 class SingleNodeFlipTempered(SingleNodeFlip):
@@ -700,10 +772,6 @@ class SingleNodeFlipTempered(SingleNodeFlip):
             return proposal, 0 # this happens sometimes but probably shouldn't for single node flip
 
 class PrecintFlowTempered(PrecintFlow):
-
-    def step(self):
-        super().step()
-        self.score_log.append(len(self.state.contested_edges))  # TODO for debugging only
 
 
     def proposal(self, state):
@@ -895,10 +963,12 @@ def com_valid_moves(state, district_id, center=(0, 0)):
         yield edge
 
 
+
 # TODO we can numba this function if needed
 def compute_dot_product(a, b, center=(0, 0)):
+    # this function's name is a bit of a misnomer
     # a, b, center are (x,y) points
-    # find vector from a to b, compute dot product
+    # find vector from a to b, compute dot product against vector perpendicular to the midpoint
     a, b, center = np.matrix(a).T, np.matrix(b).T, np.matrix(center).T  # guarantee an array
     vec_a_b = b - a
     midpoint = a + vec_a_b / 2
