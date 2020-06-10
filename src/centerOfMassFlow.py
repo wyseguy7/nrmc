@@ -271,8 +271,10 @@ def trimDiscongigousMoves(flowedMoves, state):
             # print("nghbr", n, state['graph'].nodes[n]["Centroid"])
         nbrsOfCurDist = list(nbrsOfCurDist)
         if len(nbrsOfCurDist) == 2:
-            centroid1 = state['graph'].node[nbrsOfCurDist[0]]["Centroid"]
-            centroid2 = state['graph'].node[nbrsOfCurDist[1]]["Centroid"]
+            centroid1 = state['graph'].nodes[nbrsOfCurDist[0]]["Centroid"]
+            centroid2 = state['graph'].nodes[nbrsOfCurDist[1]]["Centroid"]
+            # centroid1 = state['graph'].node[nbrsOfCurDist[0]]["Centroid"]
+            # centroid2 = state['graph'].node[nbrsOfCurDist[1]]["Centroid"]
             if np.abs(centroid1[0]-centroid2[0])==2 or\
                np.abs(centroid1[1]-centroid2[1])==2:
                trimmedMoves.add(move)

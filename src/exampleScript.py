@@ -26,12 +26,14 @@ info = args
 info = initializer.fillMissingInfoFields(info)
 state = initializer.determineStateInfo(state, info)
 # state = constructor.contructPlan(state, info)
-# state = constructor.splitSquareLattice(state, info) ## terrible code; trying to move fast
-state = constructor.singleCornerDistSquareLattice(state, info) ## terrible code; trying to move fast
+state = constructor.splitSquareLattice(state, info) ## terrible code; trying to move fast
+# state = constructor.singleCornerDistSquareLattice(state, info) ## terrible code; trying to move fast
 print(state.keys())
-exit()
+print(args)
+print(info)
 print('run initialized...')
 
 print('starting chain...')
+print(info["parameters"]["step"], info["parameters"]["steps"])
 state = metropolisHastings.run(state, proposal, info)
 print('finishing chain...')

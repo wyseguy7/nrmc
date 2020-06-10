@@ -1,3 +1,6 @@
+import uuid
+import os
+import pickle
 import logging
 import networkx as nx
 from collections import namedtuple, defaultdict
@@ -6,6 +9,13 @@ import copy
 import random
 import collections
 import itertools
+
+try:
+    from biconnected import biconnected_dfs, dot_product
+    cython_biconnected = True
+except ImportError:
+    print("No Cython for you!")
+    cython_biconnected = False
 
 # Remaining to-dos
 # Sort out state initializer, object loader
@@ -23,42 +33,20 @@ ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
-class Decorators(object):
-
-    @classmethod
-    def contested_edges_updater(cls, func):
-
-        # before performing function, checks that 'state' contains an updated copy, and updates as needed.
-
-        def inner(state, *args, **kwargs):
-            # init to current state
-            if not hasattr(state, 'contested_edges'):
-                state.contested_edges = contested_edges_naive(state)
-                state.contested_edges_updated = state.iteration  # set to current iteration
-
-            # this may be an empty list if it's already been updated
-            for node_id, old_color, new_color in state.state_log[state.contested_edges_updated:]:
-                # move is provided as (node_id, color_id)
-                neighbors = state.graph.edges(node_id)
-                # edges to add
-                state.contested_edges.update(
-                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] != new_color})
-                # edges to remove
-                state.contested_edges.difference_update(
-                    {(min(u, v), max(u, v)) for u, v in neighbors if state.node_to_color[v] == new_color})
-
-                #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
-                state.contested_edges_updated = state.iteration
-            # note that func must accept state as the FIRST argument. will this impact our ability to chain these together?
-            return func(state, *args, **kwargs)
-
-        return inner
-
 
 class State(object):
 
-    def __init__(self, graph, coloring, tallied_stats=('node_count','population'), log_contested_edges = True):
+    def __init__(self, graph, coloring, tallied_stats=('node_count','population'), log_contested_edges = True,
+                 coerce_int = True):
 
+
+        if coerce_int:
+            # this is important to ensure it's compatible with our Cython speedups
+            relabeling = {i: int(i) for i in graph.nodes()}
+            coloring = {int(k):v for k,v in coloring.items()}
+            graph = nx.relabel_nodes(graph, relabeling, copy=True)
+
+        self.coerce_int = coerce_int
         self.graph = graph
 
         self.node_to_color = coloring
@@ -73,11 +61,12 @@ class State(object):
 
         self.stat_tally = defaultdict(dict)
 
-        for district_id, nodes in self.color_to_node.items():
-            for stat in tallied_stats:
-                self.stat_tally[stat][district_id] = sum(graph[node_id][stat] for node_id in nodes)
+        # for district_id, nodes in self.color_to_node.items():
+        #     for stat in tallied_stats:
+        #         self.stat_tally[stat][district_id] = sum(graph[node_id][stat] for node_id in nodes)
+        #
+        # self.tallied_stats = tallied_stats
 
-        self.tallied_stats = tallied_stats
         self.log_contested_edges = log_contested_edges # rip these out into a mixin?
         self.contested_edge_counter = collections.defaultdict(int)
         self.contested_node_counter = collections.defaultdict(int)
@@ -87,8 +76,11 @@ class State(object):
         self.connected_true_counter = [] # TODO remove after finished debugging
         self.connected_false_counter = []
 
-        self.start_stop_to_chain = dict()
+        self.start_stop_to_chain = dict() # TODO remove
         self.node_to_start_stop = dict()
+
+
+
 
     def check_connected_lookup(self, proposal):
         # TODO finish this off so we can use it
@@ -143,7 +135,7 @@ class State(object):
         self.move_log.append(move)
         self.iteration += 1 # always change this
         if move is not None:
-            self.state_log.append(move)
+            # self.state_log.append(move)
             self.flip(move[0], move[2]) # TODO check this indexing
 
 
@@ -156,16 +148,13 @@ class State(object):
         self.node_to_color[node_id] = district_id
 
         # record the move
-        # self.state_log.append((node_id, old_color, district_id))
-        # self.move_log.append((node_id, old_color, district_id))
 
-        # self.iteration += 1  # add to iteration
 
-        for stat in self.tallied_stats:
-            # the stat tally giveth
-            self.stat_tally[stat][district_id] += self.graph.nodes()[node_id][stat] # node_data[node_id][stat]
-            # ...and it taketh away
-            self.stat_tally[stat][old_color] -= self.graph.nodes()[node_id][stat] # self.node_data[node_id][stat]
+        # for stat in self.tallied_stats:
+        #     # the stat tally giveth
+        #     self.stat_tally[stat][district_id] += self.graph.nodes()[node_id][stat] # node_data[node_id][stat]
+        #     # ...and it taketh away
+        #     self.stat_tally[stat][old_color] -= self.graph.nodes()[node_id][stat] # self.node_data[node_id][stat]
 
     # shim to add in data
 
@@ -279,7 +268,6 @@ def naive_init_flow(node_dict, edge_list, centroid):
         yield (edge if theta1 >= theta2 else (
             edge[1], edge[0]))  # TODO the logical is wrong, doesn't account for branch cut issue
 
-
 def contested_edges_naive(state):
     # generate contested edges by testing each edge in the graph. it's brute force and definitely works
     contested = set()
@@ -290,6 +278,64 @@ def contested_edges_naive(state):
         # if state.graph.nodes[edge[0]]['coloring'] != graph.nodes[edge[1]]['coloring']:
         #     contested.add((min(edge), max(edge))) # always store small, large
     return contested
+
+def update_articulation_points(state):
+
+    if not hasattr(state, 'articulation_points'):
+
+        ap_mapping = {}
+        for district_id, nodes in state.color_to_node.items():
+            ap_mapping[district_id] = set(nx.articulation_points(state.graph.subgraph(nodes)))
+
+        state.articulation_points = ap_mapping
+
+        # create arrays for all the things
+        state.adj_mapping_full = {node: np.array(list(state.graph[node].keys()), dtype='i') for node in state.graph.nodes()}
+
+        # create for just this one
+        state.adj_mapping = {district_id: {node: np.array([j for j in state.graph[node] if state.node_to_color[j]==district_id], dtype='i')
+                                           for node in nodes} for district_id, nodes in state.color_to_node.items()}
+
+        state.articulation_points_updated = state.iteration
+
+    updated_districts = set()
+    for move in state.move_log[state.articulation_points_updated:]:
+        if move is not None:
+            node_id, old_color, new_color = move
+            updated_districts.add(old_color)
+            updated_districts.add(new_color)
+
+            del state.adj_mapping[old_color][node_id] # remove from old
+            # add to new
+            state.adj_mapping[new_color][node_id] = np.array(
+                [j for j in state.adj_mapping_full[node_id] if state.node_to_color[j]==new_color], dtype='i')
+
+            for neighbor_id in state.adj_mapping_full[node_id]:
+                neighbor_color = state.node_to_color[neighbor_id]
+                state.adj_mapping[neighbor_color][neighbor_id] = np.array(
+                    [i for i in state.adj_mapping_full[neighbor_id] if state.node_to_color[i]==neighbor_color], dtype='i')
+
+            # state.adj_mapping[old_color][node_id] = np.array(
+            #     [j for j in state.graph.nodes[node_id] if state.node_to_color[j]==old_color], dtype='i')
+            # state.adj_mapping[old_color][node_id] = np.array(
+            #     [j for j in state.graph.nodes[node_id] if state.node_to_color[j] == new_color], dtype='i')
+
+    for updated_district in updated_districts:
+        if cython_biconnected and state.coerce_int: # only use if we were able to import properly
+            # provide node list and adjacency graph - is this going to double-pay for serialization?
+            art_points = biconnected_dfs(list(state.color_to_node[updated_district]),
+                                         state.adj_mapping[updated_district])
+                                         # {i: [j for j in state.graph[i] if j in state.color_to_node[updated_district]]
+                                          # for i in state.color_to_node[updated_district]})
+        else:
+            # TODO put a warning here that the user is using the slower algorithm
+            art_points = nx.articulation_points(state.graph.subgraph(state.color_to_node[updated_district]))
+
+
+        state.articulation_points[updated_district] = set(art_points)
+
+    state.articulation_points_updated = state.iteration
+
 
 
 # we can either subclass this object or attach a bunch of functions to it, either is fine really
@@ -309,11 +355,58 @@ class MetropolisProcess(object):
         if log_com:
             self.com_log = []
 
+
+    def make_sandbox(self):
+
+
+        my_id = uuid.uuid4().hex[:6]
+        self.filepath = "{classname}_{my_id}_measure_beta={measure_beta}beta={beta}".format(
+            measure_beta=self.measure_beta, beta=self.beta, classname=self.__class__.__name__, my_id= my_id)
+        os.makedirs(self.filepath, exist_ok=False) # ensure that the folder path exists
+
+    def save(self):
+        with open(os.path.join(self.filepath, 'process.pkl'), mode='wb') as f:
+            pickle.dump(self)
+
+
+
     def score_to_prob(self, score):
         return exp(-0.5*self.measure_beta*score)
 
     def score_to_proposal_prob(self, score):
         return exp(-0.5*score*self.beta)
+
+    def proposal_check(self, state, proposal):
+        # hook to support subclassing
+        return True
+
+
+    def involve_state(self, state):
+        state.involution *= -1
+
+    def perform_involution(self):
+        self.involve_state(self.state)
+
+    def proposal_filter(self, state, proposals):
+
+        update_boundary_nodes(state)
+        update_articulation_points(state)
+        pop_check_failed = set()
+
+        for node_id, old_color, new_color in proposals:
+            if old_color in pop_check_failed:
+                continue
+
+            if self.minimum_population is not None and not check_population(state, old_color, self.minimum_population):
+                pop_check_failed.add(old_color)
+                continue
+
+            if node_id in state.articulation_points[old_color] or not simply_connected(state, node_id, old_color, new_color) \
+                    or not self.proposal_check(state, (node_id, old_color, new_color)):
+                continue # will disconnect the graph
+
+            yield (node_id, old_color, new_color)
+
 
     def proposal_checks(self, state, proposal):
         # checked against each proposal in get_proposals
@@ -322,9 +415,10 @@ class MetropolisProcess(object):
         if self.minimum_population is not None and not check_population(state, old_color, self.minimum_population):
             return False
 
-        if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
-                                               and simply_connected(state, node_id,old_color, new_color)):
-            return False
+        # if state.check_connectedness and not()
+        # if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
+        #                                        and simply_connected(state, node_id,old_color, new_color)):
+        #     return False
 
         return True
 
@@ -348,17 +442,19 @@ class MetropolisProcess(object):
             if (node_id, old_color, new_color) in scored_proposals:
                 continue # already scored this proposal
 
-            if not self.proposal_checks(state, (node_id, old_color, new_color)):
-                continue # not a valid proposal
+            # if not self.proposal_checks(state, (node_id, old_color, new_color)):
+            #     continue # not a valid proposal
 
             scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
 
-        return scored_proposals
+        return {proposal: scored_proposals[proposal] for proposal in self.proposal_filter(state, scored_proposals)}
+
+        # return scored_proposals
 
 
-    def proposal(self):
+    def proposal(self, state):
         # picks a proposal randomly without any weighting
-        scored_proposals = self.get_proposals(self.state)
+        scored_proposals = self.get_proposals(self.state) # TODO check this against subclassing behaviour
         # score = self.score_proposal()
         proposal = random.choices(list(scored_proposals.keys()))[0]
         prob = self.score_to_prob(scored_proposals[proposal])  # should be totally unweighted here
@@ -369,6 +465,7 @@ class MetropolisProcess(object):
         state.handle_move(prop)
 
     def handle_rejection(self, prop, state):
+        self.perform_involution()
         state.handle_move(None)
 
     def accept_reject(self, score):
@@ -376,7 +473,8 @@ class MetropolisProcess(object):
         # TODO rng here
         # returns a boolean
         u = np.random.uniform()
-        return u < min(score, 1)
+        return u < score
+        # return u < min(score, 1)
 
     def step(self):
         prop, prob = self.proposal(self.state)  # no side effects here, should be totally based on current state
@@ -416,39 +514,56 @@ class TemperedProposalMixin(MetropolisProcess):
         self._proposal_state = copy.deepcopy(self.state)
 
         # if involution is set, make it always the opposite
-        self._proposal_state.involution = self.flipped_involution # set to opposite of original
+        self._proposal_state.involution = self.state.involution *-1 # set to opposite of original
         self._proposal_state.log_contested_edges = False # don't waste time logging this
 
-    @property
-    def flipped_involution(self):
-        return self.state.involution * -1
+        self.no_reverse_prob_counter = 0
+        self.no_valid_proposal_counter = 0
+
+
+    def perform_involution(self):
+        self.involve_state(self.state)
+        self.involve_state(self._proposal_state)
+
+    def handle_acceptance(self, prop, state):
+
+        super().handle_acceptance(prop, state)
+
+
+
 
     def handle_rejection(self, prop, state):
         super().handle_rejection(prop, state)
-        self._proposal_state.handle_move((prop[0], prop[2], prop[1]))  # undo earlier move
+        if prop[0] is not None: # ignore if we couldn't find a valid proposal
+            self._proposal_state.handle_move((prop[0], prop[2], prop[1]))  # undo earlier move
 
     def proposal(self, state):
         # TODO this is common with SingleNodeFlipTempered, perhaps split this out
         scored_proposals = self.get_proposals(self.state)
         proposal_probs = {k:self.score_to_proposal_prob(v) for k,v in scored_proposals.items()}
 
-        proposal = random.choices(list(proposal_probs.keys()),
-                                  weights=proposal_probs.values())[0]
+        try:
+            proposal = random.choices(list(proposal_probs.keys()),
+                                      weights=proposal_probs.values())[0]
+        except IndexError:
+            self.no_valid_proposal_counter += 1
+            return (None, None, None), 0 # we couldn't find a valid proposal, need to involve
+
 
         self._proposal_state.handle_move(proposal)
-        if not self.check_connected(state, *proposal) and simply_connected(state, *proposal):
-            return proposal, 0 # always zero
+        # if not self.check_connected(state, *proposal) and simply_connected(state, *proposal):
+        #     return proposal, 0 # always zero
 
         reverse_proposals = self.get_proposals(self._proposal_state)
         reverse_proposal_probs = {k:self.score_to_proposal_prob(v) for k,v in reverse_proposals.items()}
 
         try:
-            # TODO this should match q, q_prime nomenclature in superclass - still correct, need to swap names
             q = reverse_proposal_probs[(proposal[0], proposal[2], proposal[1])]/sum(reverse_proposal_probs.values())
             q_prime = proposal_probs[proposal]/sum(proposal_probs.values())
             prob = self.score_to_prob(scored_proposals[proposal])*q/q_prime
             return proposal, prob
         except KeyError:
+            self.no_reverse_prob_counter += 1
             return proposal, 0 # this happens sometimes but probably shouldn't for single node flip
 
 
@@ -463,7 +578,7 @@ def calculate_com_naive(state, weight_attribute=None):
 
         total_weight[district_id] = sum(weights.values())
         com[district_id] = np.array([sum([state.graph.nodes()[i]['Centroid'][j]*weights[i] for i in nodes]
-                                         )/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH)])
+                                         )/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH)], dtype='d')
     return com, total_weight
 
 
@@ -471,16 +586,17 @@ def calculate_com_one_step(state, proposal, weight_attribute=None):
 
     node_id, old_color, new_color = proposal
 
-    com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
-    total_weight = copy.deepcopy(state.com_total_weight)
+#     com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
+#     total_weight = copy.deepcopy(state.com_total_weight)
     node = state.graph.nodes()[node_id] # how expensive is this lookup, anyways?
 
     weight = node[weight_attribute] if weight_attribute is not None else 1
 
-    com_centroid[new_color] = (node['Centroid'] * weight + com_centroid[new_color]*total_weight[new_color])/(
-            total_weight[new_color] + weight)
-    com_centroid[old_color] = (-node['Centroid'] * weight + com_centroid[old_color]*total_weight[old_color])/(
-            total_weight[old_color] - weight)
+
+    centroid_new_color = (node['Centroid'] * weight + state.com_centroid[new_color] * state.com_total_weight[new_color])/(
+            state.com_total_weight[new_color] + weight)
+    centroid_old_color = (-node['Centroid'] * weight + state.com_centroid[old_color] * state.com_total_weight[old_color])/(
+            state.com_total_weight[old_color] - weight)
 
 
     # for j in range(CENTROID_DIM_LENGTH):
@@ -488,10 +604,13 @@ def calculate_com_one_step(state, proposal, weight_attribute=None):
     #             total_weight[new_color] + weight)
     #     com_centroid[old_color][j] = (-node[j] * weight + com_centroid[old_color][j] * total_weight[old_color]) / (
     #             total_weight[old_color] - weight)
-    total_weight[new_color] = total_weight[new_color] + weight
-    total_weight[old_color] = total_weight[old_color] - weight
+    # total_weight[new_color] = total_weight[new_color] + weight
+    # total_weight[old_color] = total_weight[old_color] - weight
 
-    return com_centroid, total_weight
+    total_weight_new_color = state.com_total_weight[new_color] + weight
+    total_weight_old_color = state.com_total_weight[old_color] - weight
+
+    return centroid_new_color, centroid_old_color, total_weight_new_color, total_weight_old_color
 
 def update_center_of_mass(state):
 
@@ -501,7 +620,9 @@ def update_center_of_mass(state):
 
     for i in state.move_log[state.com_updated:]:
         if i is not None:
-            state.com_centroid, state.com_total_weight = calculate_com_one_step(state, i)
+            node_id, old_color, new_color = i
+            (state.com_centroid[new_color], state.com_centroid[old_color],
+             state.com_total_weight[new_color], state.com_total_weight[old_color]) = calculate_com_one_step(state, i)
 
     state.com_updated = state.iteration
 
@@ -511,11 +632,11 @@ class PrecintFlow(MetropolisProcess):
     # TODO perhaps stat_tally should go in here instead
 
     # make proposals on what maximizes the L2 norm of a statistic
-    def __init__(self, state, statistic='population', center=(0, 0)):
-        super().__init__(state)
+    def __init__(self, *args, statistic='population', center=(0, 0), **kwargs):
+        super().__init__(*args, **kwargs)
         self.statistic = statistic
         self.state.involution = 1  # also do involutions
-        self.center = center
+        self.center = np.array(center, dtype='d') # guarantee a numpy array here
         self.make_involution_lookup_naive()  # instantiate the involution lookup
         # self.make_involution_lookup_lattice(n=40) # TODO rip this back out once debugged
         self.ideal_statistic = sum([node[self.statistic] for node in self.state.graph.nodes().values()])/len(self.state.graph.nodes())
@@ -523,6 +644,7 @@ class PrecintFlow(MetropolisProcess):
         #                             for node_id in self.state.node_to_color.keys()]) / len(self.state.color_to_node)
         # assumes balance
         # self.score_log = []
+
 
         self._proposal_state = copy.deepcopy(self.state)
         self._proposal_state.involution *= -1 # should be opposite of original state
@@ -587,30 +709,30 @@ class PrecintFlow(MetropolisProcess):
         raise RuntimeError("Exceeded tries to find a proposal")
 
 
-    def score_proposal(self, node_id, old_color, new_color, state):
-        # we want to MINIMIZE score
-        current_score = sum([(i - self.ideal_statistic) ** 2 for i in state.stat_tally[self.statistic].values()])
-        sum_smaller = sum([state.graph.nodes()[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
-        sum_larger = state.stat_tally[self.statistic][new_color] + state.graph.nodes()[node_id][self.statistic]
-
-        new_score = (current_score
-                     - (state.stat_tally[self.statistic][new_color] - self.ideal_statistic) ** 2
-                     - state.stat_tally[self.statistic][old_color] ** 2
-                     + (sum_smaller - self.ideal_statistic) ** 2
-                     + (sum_larger - self.ideal_statistic) ** 2)
-
-        # TODO should beta be owned by state, or by the Markov process?
-        # technically could be state-dependent when we have parallel tempering
-
-        # self.score_log.append(new_score - current_score)  # for debugging purposes
-
-        return np.exp(-1 * (new_score - current_score) * self.beta * self.measure_beta)  # TODO double check the sign here
+    # def score_proposal(self, node_id, old_color, new_color, state):
+    #     # we want to MINIMIZE score
+    #     current_score = sum([(i - self.ideal_statistic) ** 2 for i in state.stat_tally[self.statistic].values()])
+    #     sum_smaller = sum([state.graph.nodes()[i][self.statistic] for i in state.color_to_node[old_color] if i != node_id])
+    #     sum_larger = state.stat_tally[self.statistic][new_color] + state.graph.nodes()[node_id][self.statistic]
+    #
+    #     new_score = (current_score
+    #                  - (state.stat_tally[self.statistic][new_color] - self.ideal_statistic) ** 2
+    #                  - state.stat_tally[self.statistic][old_color] ** 2
+    #                  + (sum_smaller - self.ideal_statistic) ** 2
+    #                  + (sum_larger - self.ideal_statistic) ** 2)
+    #
+    #     # TODO should beta be owned by state, or by the Markov process?
+    #     # technically could be state-dependent when we have parallel tempering
+    #
+    #     # self.score_log.append(new_score - current_score)  # for debugging purposes
+    #
+    #     return np.exp(-1 * (new_score - current_score) * self.beta * self.measure_beta)  # TODO double check the sign here
 
 
 class CenterOfMassFlow(TemperedProposalMixin):
     def __init__(self, *args, weight_attribute=None, center=(0,0), **kwargs):
         super().__init__(*args, **kwargs)
-        self.center = center
+        self.center = np.array(center, dtype='d')
         self.weight_attribute = weight_attribute
 
         for state in (self.state, self._proposal_state):
@@ -624,34 +746,46 @@ class CenterOfMassFlow(TemperedProposalMixin):
 
         super().handle_rejection(prop, state)
         # print("Involution on step {}".format(state.iteration))
-        state.involution *= -1
+        # state.involution *= -1
+
+    def handle_acceptance(self, prop, state):
+        super().handle_acceptance(prop, state)
+
+        # these are all simple objects, so copy is safe - how expensive is it though?
+        self.state.contested_nodes = copy.copy(self._proposal_state.contested_nodes)
+        self.state.contested_edges = copy.copy(self._proposal_state.contested_edges)
+        self.state.com_centroid = copy.copy(self._proposal_state.com_centroid)
+        self.state.com_total_weight = copy.copy(self._proposal_state.com_total_weight)
+        self.state.articulation_points = copy.copy(self._proposal_state.articulation_points)
+
+        self.state.articulation_points_updated += 1
+        self.state.com_updated += 1
+        self.state.contested_edges_updated +=1
 
 
-    def get_directed_edges(self, state):
-        update_contested_edges(state)
+    def proposal_filter(self, state, proposals):
+
         update_center_of_mass(state)
+        # stack this generator on top of the earlier one
+        for proposal in super().proposal_filter(state, proposals):
+            # filter out any proposals that don't meet the criterion
+            node_id, old_color, new_color = proposal
+            (centroid_new_color, centroid_old_color,
+             total_weight_new_color, total_weight_old_color) = calculate_com_one_step(
+                state, (node_id, old_color, new_color), self.weight_attribute)
 
-        evaluated_props = set()
-        for edge in state.contested_edges:
-
-            # test the default direction - if it isn't valid, return a flipped edge
-            node_id = edge[0] # proposal is make edge[0] the same color as edge[1]
-            old_color = state.node_to_color[edge[0]]
-            new_color = state.node_to_color[edge[1]]
-            # proposal is valid if the shift in center of mass is in the direction of the vector field
-            if (node_id, new_color) in evaluated_props:
-                continue # don't bother with this one, we've already evaluated it
-
-
-            centroid_new, weights_new = calculate_com_one_step(state, (node_id, old_color, new_color), self.weight_attribute)
-            v_1 = centroid_new[new_color] - state.com_centroid[new_color]
-            v_2 = centroid_new[old_color] - state.com_centroid[old_color]
-
-            if  (np.dot(v_1, v_2) * state.involution) > 0:
-                yield edge
+            if cython_biconnected:
+                # cython version
+                dp_old = dot_product(state.com_centroid[old_color], centroid_old_color, self.center)
+                dp_new = dot_product(state.com_centroid[new_color], centroid_new_color, self.center)
             else:
-                yield (edge[1], edge[0])
-            evaluated_props.add((node_id, new_color))
+                dp_old = compute_dot_product(state.com_centroid[old_color], centroid_old_color, self.center)
+                dp_new = compute_dot_product(state.com_centroid[new_color], centroid_new_color, self.center)
+
+
+            if (dp_old + dp_new)*state.involution > 0:
+                yield proposal
+
 
 
 
@@ -674,12 +808,201 @@ class CenterOfMassFlowFixed(CenterOfMassFlow):
 
 
             centroid_new, weights_new = calculate_com_one_step(state, (node_id, old_color, new_color), self.weight_attribute)
+
+
+
             if compute_dot_product(state.com_centroid[new_color], centroid_new[new_color], center=self.center):
                 yield edge
             else:
                 yield (edge[1], edge[0])
             evaluated_props.add((node_id, new_color))
 
+
+def compute_autocorr_bootstrap(process, points = 10000, max_distance=500000):
+
+
+    # pick points randomly
+
+    move_loc = random.sample(list(range(process.move_log)), points)
+
+    # num_colors = len(process.state.color_to_node)
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    node_to_idx = {b:a for a,b in enumerate(process.state.node_to_color.keys())}
+
+    move_loc_to_state = {idx: None for idx in move_loc}
+
+
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+    for i in range(len(process.move_log)):
+        if process.move_log[i] is not None:
+            # handle the move
+            node_id, old_color, new_color = process.move_log[i]
+            state_array[node_to_idx[node], old_color] = 0
+            state_array[node_to_idx[node], new_color] = 1
+
+        if i in move_loc_to_state:
+            move_loc_to_state[i] = state_array.copy()
+
+    # subtract off mu
+    mu = np.full(shape=state_array.shape)
+    for move_loc in move_loc_to_state:
+        move_loc_to_state[move_loc] -= mu
+
+
+    diff = np.zeros(shape=max_distance)
+    weights = diff.copy()
+    for loc, ary in move_loc_to_state.items():
+        for other_loc, other_ary in move_loc_to_state.items():
+            # sorry for nested loop, probably avoidable with sorting
+            dist = other_loc - loc
+            if dist > 0 and dist < max_distance:
+                stat = sum(np.matmul(ary.T, other_ary)) #
+
+                diff[dist] = (diff[dist]*weights[dist] + stat)/(weights[dist]+1)
+                weights[dist] = weights + 1
+
+    return diff, weights
+
+
+def create_district_boundary_naive(state):
+
+    district_boundary = defaultdict(set)
+
+    for node_id, color in state.node_to_color.items():
+
+        for neighbor in state.graph.neighbors(node_id):
+            if state.node_to_color[neighbor]!= color:
+                neighbor_color = state.node_to_color[neighbor]
+                district_boundary[(min(color, neighbor_color), max(color, neighbor_color))].add(
+                    (min(node_id, neighbor), max(node_id, neighbor)))
+
+    return district_boundary
+
+
+
+def process_boundary_move(state, node_id, old_color, new_color, neighbor):
+    neighbor_color = state.node_to_color[neighbor]
+    if neighbor_color != new_color:
+        key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+        state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
+    if neighbor_color != old_color:
+        key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
+        state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
+
+
+def update_district_boundary(state):
+
+    if not hasattr(state, 'district_boundary'):
+
+        state.district_boundary = create_district_boundary_naive(state)
+        state.district_boundary_updated = state.iteration
+
+    moves_to_do = [i for i in state.move_log[state.district_boundary_updated:] if i is not None]
+
+    # TODO we have repeated code in two places, rip out into function
+
+    if len(moves_to_do) < 5:
+        for node_id, old_color, new_color in moves_to_do:
+            for neighbor in state.graph.neighbors(node_id):
+                neighbor_color = state.node_to_color[neighbor]
+                key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+
+                if neighbor_color != new_color:
+                    state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
+                else: # color == new_color
+                    key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
+                    state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
+
+    else:
+        perturbed_nodes = dict()
+        for node_id, old_color, new_color in moves_to_do:
+
+            if node_id in perturbed_nodes:
+                perturbed_nodes[node_id][1] = new_color
+            else:
+                perturbed_nodes[node_id] = (old_color, new_color)
+
+        for node_id, (old_color, new_color) in perturbed_nodes.items():
+
+            for neighbor in state.graph.neighbors(node_id):
+                neighbor_color = state.node_to_color[neighbor]
+                key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+
+                if neighbor_color != new_color:
+                    state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
+                else: # color == new_color
+                    # key = (min(neighbor_color, new_color), max(neighbor_color, old_color))
+                    state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
+
+    state.district_boundary_updated = state.iteration
+
+
+
+class DistrictToDistrictFlow(MetropolisProcess):
+    # if not scored_proposals:
+    #     return (None, 0, 1), 0  # TODO fix this, it won't generalize
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        # assign initial involution state - should this be specifiable by user?
+        involution_state = dict()
+
+        for district_id in self.state.color_to_node.keys():
+            for other_district_id in self.state.color_to_node.keys():
+                if district_id < other_district_id:
+                    involution_state[(district_id, other_district_id)] = random.choices([-1, 1])[0]
+        self.involution_state = involution_state
+        self.log_com = False  # TODO repair the issue here
+
+    def handle_rejection(self, prop, state):
+        super().handle_rejection(prop, state)
+        self.involution_state[min(prop[1], prop[2]), max(prop[1], prop[2])]*= -1 # flip the appropriate involution state
+
+
+    def proposal(self, state):
+        try:
+            return super().proposal(state)
+        except IndexError:
+            # occurs when no valid proposal could be identified - we still need to involve correctly
+            return (None, self.boundary[0], self.boundary[1]), 0 # no probability of accepting, will involve correctly
+
+
+    def get_directed_edges(self, state):
+        update_contested_edges(state)
+        update_district_boundary(state)
+
+        # only allow correctly directed edges from one district boundary we've picked
+
+        # TODO rng here
+        counter = 0
+        while True:
+            boundary = random.choices(list(state.district_boundary.keys()))[0]
+            if state.district_boundary[boundary]: # if this isn't an empty list
+                break
+            counter +=1
+            if counter > 100:
+                raise ValueError("Didn't select a valid boundary within valid time")
+
+
+        if self.involution_state[boundary] == 1:
+            old_color, new_color = boundary
+
+        else:
+            # state = -1
+            new_color, old_color = boundary
+
+        self.boundary = (old_color, new_color) # always in the direction of flow
+
+        for edge in state.district_boundary[boundary]:
+            if state.node_to_color[edge[0]] == old_color:
+                yield edge
+            else:
+                yield (edge[1], edge[0])
 
 
 
@@ -965,7 +1288,7 @@ def com_valid_moves(state, district_id, center=(0, 0)):
 
 
 # TODO we can numba this function if needed
-def compute_dot_product(a, b, center=(0, 0)):
+def compute_dot_product(a, b, center=(0, 0), normalize=True):
     # this function's name is a bit of a misnomer
     # a, b, center are (x,y) points
     # find vector from a to b, compute dot product against vector perpendicular to the midpoint
@@ -976,7 +1299,11 @@ def compute_dot_product(a, b, center=(0, 0)):
     vec_perp_center = np.matmul(ROT_MATRIX,
                                 vec_from_center)  # perform a 90-degree CCW rotation to find flow at midpoint
     dp = np.dot(vec_a_b.T, vec_perp_center)  # find the dot product
-    return dp  # dot product
+
+    if normalize:
+        return dp/np.linalg.norm(vec_perp_center)/np.linalg.norm(vec_a_b)
+    else:
+        return  dp  # dot product
 
 
 def center_of_mass_updater(func):
@@ -1193,6 +1520,26 @@ def count_node_colorings(process):
 
     return node_coloring
 
+def update_boundary_nodes_naive(state):
+    counter = collections.Counter([v for k,v in state.node_to_color.items() if state.graph.nodes()[v]['boundary']])
+    return counter
+
+
+def update_boundary_nodes(state):
+
+    if not hasattr(state, 'boundary_node_counter'):
+        state.boundary_node_counter = update_boundary_nodes_naive(state)
+
+    else:
+        for move in state.move_log[state.boundary_node_updated:]:
+            if move is not None and state.graph.nodes()[move[0]]['boundary']:
+                # if we flipped a boundary node
+                state.boundary_node_counter[move[1]] -= 1
+                state.boundary_node_counter[move[2]] += 1
+
+    state.boundary_node_updated = state.iteration
+
+
 def count_node_flips(process):
 
     # count the number of times each node was flipped
@@ -1203,7 +1550,10 @@ def count_node_flips(process):
 def simply_connected(state, node_id, old_color, new_color):
     # asssuming that a proposal will result in a graph being connected, check that it will be simply connected
     # this occurs iff there is another node district:old_color that touches either boundary or another color
-    update_contested_edges(state) # do we need this here or can we pull it somewhere else?
+    # update_contested_edges(state) # do we need this here or can we pull it somewhere else?
+
+    if state.boundary_node_counter[old_color] > 0:
+        return True # this handles the vast majority of cases
 
     smaller = state.color_to_node[old_color] - {node_id}
     contested_nodes = {i[0] for i in state.contested_edges}.union({i[1] for i in state.contested_edges}).intersection(
