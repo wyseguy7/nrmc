@@ -40,7 +40,8 @@ for node in state_new.graph.nodes():
     # TODO update for new lattice size
 
 
-process = pf.CenterOfMassFlow(state_new, beta=1, measure_beta=2, minimum_population=756, center=(20,20)) # TODO fill in args
+process = pf.CenterOfMassLazyInvolution(state_new, beta=1, measure_beta=2,
+                                        minimum_population=756, center=(20,20), involution_rate=0.1) # TODO fill in args
 
 try:
 
@@ -56,7 +57,7 @@ try:
 
 
             filepath = os.path.join('gerry_pics', 'center_of_mass',
-                                     '{}_beta=2_big_run_square_lattice_{}.png'.format(date, i))
+                                     '{}_lazy_beta=2_big_run_square_lattice_{}.png'.format(date, i))
             f.savefig(filepath)
 
             plt.close()
@@ -66,5 +67,5 @@ finally:
 
     # TODO put those heatmaps here so we don't have to do later
 
-    with open('center_of_mass_{}.pkl'.format(date), mode='wb') as f:
+    with open('center_of_mass_lazy_{}.pkl'.format(date), mode='wb') as f:
         pickle.dump(process, f)

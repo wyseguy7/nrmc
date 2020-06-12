@@ -40,12 +40,13 @@ for node in state_new.graph.nodes():
     # TODO update for new lattice size
 
 
-process = pf.CenterOfMassFlow(state_new, beta=1, measure_beta=2, minimum_population=756, center=(20,20)) # TODO fill in args
+process = pf.DistrictToDistrictLazyInvolution(state_new, beta=1, measure_beta=2, minimum_population=756, involution_rate=0.1) # TODO fill in args
+
 
 try:
 
     date = str(pd.datetime.today().date())
-    for i in range(5000000):
+    for i in range(10000000):
         process.step()
 
         if i % 10000 == 0:
@@ -55,7 +56,7 @@ try:
                  node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join('gerry_pics', 'center_of_mass',
+            filepath = os.path.join('gerry_pics', 'district_to_district',
                                      '{}_beta=2_big_run_square_lattice_{}.png'.format(date, i))
             f.savefig(filepath)
 
@@ -66,5 +67,5 @@ finally:
 
     # TODO put those heatmaps here so we don't have to do later
 
-    with open('center_of_mass_{}.pkl'.format(date), mode='wb') as f:
+    with open('district_to_district_{}.pkl'.format(date), mode='wb') as f:
         pickle.dump(process, f)

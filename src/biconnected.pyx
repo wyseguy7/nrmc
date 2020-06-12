@@ -42,7 +42,8 @@ cpdef dot_product(double[:] a, double[:] b, double[:] center):
     vec_perp_center[1] = vec_from_center[0]
 
     for i in range(2):
-        dp += vec_a_b[i]*vec_from_center[i]
+        # dp += vec_a_b[i]*vec_from_center[i]
+        dp += vec_a_b[i]*vec_perp_center[i]
         norm_center += vec_perp_center[i]**2
         norm_a_b += vec_a_b[i]**2
 
@@ -53,8 +54,8 @@ cpdef dot_product(double[:] a, double[:] b, double[:] center):
 #     for it in node_adj.begin():
 #         print(it)
 
-cpdef vector[int] biconnected_dfs(unordered_map[int, vector[int]] node_adj):
-# cpdef vector[int] biconnected_dfs(vector[int] node_list, unordered_map[int, vector[int]] node_adj):
+# cpdef vector[int] biconnected_dfs(unordered_map[int, vector[int]] node_adj):
+cpdef vector[int] biconnected_dfs(vector[int] node_list, unordered_map[int, vector[int]] node_adj):
 
 
 
@@ -71,10 +72,10 @@ cpdef vector[int] biconnected_dfs(unordered_map[int, vector[int]] node_adj):
     cdef StackInner last_el
 
 
-    # for i in range(node_list.size()):
-    for it in node_adj.begin():
-        start = it.first
-        # start = node_list[i]
+    for i in range(node_list.size()):
+    # for it in node_adj.begin():
+        # start = it.first
+        start = node_list[i]
 
         if visited.count(start) !=0:
             continue
@@ -89,8 +90,8 @@ cpdef vector[int] biconnected_dfs(unordered_map[int, vector[int]] node_adj):
         visited.insert(start)
 
         stack.clear()
-        # stack.push_back(StackInner(start, start, node_adj[start]))
-        stack.push_back(StackInner(start, start, it.second))
+        stack.push_back(StackInner(start, start, node_adj[start]))
+        # stack.push_back(StackInner(start, start, it.second))
         while stack.size() > 0:
             last_el = stack.back() # will this work?
             grandparent = last_el.grandparent

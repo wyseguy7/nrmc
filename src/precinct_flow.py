@@ -956,12 +956,16 @@ class DistrictToDistrictFlow(MetropolisProcess):
             for other_district_id in self.state.color_to_node.keys():
                 if district_id < other_district_id:
                     involution_state[(district_id, other_district_id)] = random.choices([-1, 1])[0]
-        self.involution_state = involution_state
+        self.state.involution_state = involution_state
         self.log_com = False  # TODO repair the issue here
 
-    def handle_rejection(self, prop, state):
-        super().handle_rejection(prop, state)
-        self.involution_state[min(prop[1], prop[2]), max(prop[1], prop[2])]*= -1 # flip the appropriate involution state
+
+    def involve_state(self, state):
+        state.involution_state[min(self.boundary), max(self.boundary)]*=-1
+
+    # def handle_rejection(self, prop, state):
+    #     super().handle_rejection(prop, state)
+    #     self.involution_state[min(prop[1], prop[2]), max(prop[1], prop[2])]*= -1 # flip the appropriate involution state
 
 
     def proposal(self, state):
@@ -989,7 +993,7 @@ class DistrictToDistrictFlow(MetropolisProcess):
                 raise ValueError("Didn't select a valid boundary within valid time")
 
 
-        if self.involution_state[boundary] == 1:
+        if self.state.involution_state[boundary] == 1:
             old_color, new_color = boundary
 
         else:
@@ -1003,8 +1007,6 @@ class DistrictToDistrictFlow(MetropolisProcess):
                 yield edge
             else:
                 yield (edge[1], edge[0])
-
-
 
 
 class SingleNodeFlip(MetropolisProcess):
@@ -1208,25 +1210,31 @@ class PrecinctFlowNoConnectedTemper(PrecintFlowTempered):
             return proposal, 0 # this happens sometimes but probably shouldn't for single node flip
 
 
-class LazyInvolutionMixin(MetropolisProcess):
-    # can be used to add lazy involution to any MetropolisProcess
-
-
+class CenterOfMassLazyInvolution(CenterOfMassFlow):
     def __init__(self, *args, involution_rate=0.5, **kwargs):
         super().__init__(*args, **kwargs)
         self.involution_rate = involution_rate
 
-    def handle_rejection(self, prop, state):
+    def perform_involution(self):
         # TODO rng here
         if np.random.uniform(size=1) < self.involution_rate:
-            super().handle_rejection(prop, state) # involve
-        else:
-            self.state.handle_move(None) # only log a non-move
+            super().perform_involution() # involve
 
-        # TODO what sort of tracking needs to be done to ensure that we appropriately measure everything
-        # can we adjust the involution rate? if we are rejecting a lot, maybe it's nice to muscle your way through to another macrostate?
 
-class LazyAdjustedInvolutionMixin(LazyInvolutionMixin):
+class DistrictToDistrictLazyInvolution(DistrictToDistrictFlow):
+    def __init__(self, *args, involution_rate=0.5, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.involution_rate = involution_rate
+
+    def perform_involution(self):
+        # TODO rng here
+        if np.random.uniform(size=1) < self.involution_rate:
+            super().perform_involution() # involve
+
+
+
+# TODO this class is broken
+class LazyAdjustedInvolutionMixin(object):
     # automatically adjusts the involution rate along a sigmoid function
     # every time we reject a proposal, we will decrease the involution rate - if we're making bad proposals
     # we need to move to another state
