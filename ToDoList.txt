@@ -24,15 +24,14 @@ Real world examples: Only worry about population and compactness
 Alamance; House (2 districts)
 x Single node flip
 _ Single node flip with tempering
-_ precinct flow (tempering)
 _ COM flow (tempering)
 
 Mecklenburg; Senate (5 districts)
 x Single node flip
 _ Single node flip with tempering
-_ precinct flow (tempering)
 _ COM flow (tempering)
 _ district-to-district flow (tempering)
+_ cyles
 
 NC; Congressional (13 districts)
 _ Single node flip
