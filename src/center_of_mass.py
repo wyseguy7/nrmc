@@ -18,7 +18,10 @@ class CenterOfMassFlow(TemperedProposalMixin):
             for i in range(2): # will this always be R2?
                 center[i] = sum(nodedata['Centroid'][i]*
                                 (nodedata[weight_attribute] if weight_attribute is not None else 1)
-                                for node, nodedata in self.state.graph.items())
+                                for node, nodedata in self.state.graph.nodes.items())
+
+        else:
+            center = np.array(center, dtype='d') # guarantee a numpy array
 
         self.center = center
 
@@ -104,29 +107,3 @@ class CenterOfMassIsoparametricPopulation(CenterOfMassFlow):
     def score_proposal(self, node_id, old_color, new_color, state):
         return (self.compactness_weight * compactness_score(state, (node_id, old_color, new_color))
         + self.population_weight * (population_balance_score(state, (node_id, old_color, new_color))-state.population_deviation))
-
-
-# assumes there is a weight, x, y attribute associated with each node
-def compute_com(state, district_id):
-    # TODO needs updating for new handling of node data
-    # get an updated center of mass for a particular district_id
-
-    nodes = state.color_to_node[district_id]  # set
-    com_x = sum([state.node_data[node_id]['weight'] * state.node_data[node_id]['x'] for node_id in nodes])
-    com_y = sum([state.node_data[node_id]['weight'] * state.node_data[node_id]['y'] for node_id in nodes])
-
-    sum_weights = sum([state.node_id[node_id]['weight'] for node_id in nodes])
-    # nodes = [i for i in ]
-
-    return com_x / sum_weights, com_y / sum_weights
-
-
-def com_valid_moves(state, district_id, center=(0, 0)):
-    # determine list of neighboring (contested) nodes that could be colored the same as the given district
-    # returns list[node_id]
-    nodes = state.color_to_node[district_id]
-    cont_nodes = {i[1] for i in state.contested_edges if i[0] in nodes}  # list of node_ids neighboring
-    # com_original =
-
-    for edge in cont_nodes:
-        yield edge

@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import collections
-
+import copy
 
 def state_log_to_coloring(process):
     '''converts the state log to a an array of colorings, structured . only functions if coloring is an int'''
@@ -103,4 +103,27 @@ def count_node_flips(process):
 
     # count the number of times each node was flipped
     return collections.Counter([i[0] for i in process.state.move_log if i is not None])
+
+
+def track_state(process, to_track, updaters=()):
+    # replay the move log and keep track of each attribute
+    state = copy.deepcopy(process._initial_state) # sorry for inefficiency, but this will be miserable otherwise
+    tracker = collections.defaultdict(list)
+
+    # to_track is dict[str:function]
+
+    for updater in updaters:
+        updater(state)
+
+    for move in process.state.move_log: # the actual moves
+        state.handle_move(move)
+
+        for updater in updaters:
+            updater(state) # keep everything up to date
+
+        for attr in to_track:
+            tracker[attr].append(to_track[attr](state))
+
+    return tracker # all done
+
 

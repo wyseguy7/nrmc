@@ -31,17 +31,17 @@ state = constructor.splitSquareLattice(state, info) ## terrible code; trying to 
 print('run initialized...')
 
 
-state_new = pf.State.from_state(state)
+state_new = pf.State.from_state(state, minimum_population=756)
 
 # load in new 'boundary' attribute to nodes - required to check simply_connectedness
 for node in state_new.graph.nodes():
     centroid = state_new.graph.nodes()[node]['Centroid']
     state_new.graph.nodes()[node]['boundary'] = (centroid[0] in (0, 40) or centroid[1] in (0, 40))
+    state_new.graph.nodes()[node]['population'] = 1
     # TODO update for new lattice size
 
 
-process = pf.CenterOfMassLazyInvolution(state_new, beta=1, measure_beta=2,
-                                        minimum_population=756, center=(20,20), involution_rate=0.1) # TODO fill in args
+process = pf.CenterOfMassLazyInvolution(state_new, beta=1, measure_beta=2, center=(20,20), involution_rate=0.1) # TODO fill in args
 
 try:
 

@@ -3,7 +3,9 @@ import pickle
 
 
 # sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\')
-sys.path.append('/home/grad/etw16/src') # TODO make this less garbage-y
+sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
+sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
+sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 
 
 import constructor
@@ -11,11 +13,14 @@ import districtingGraph
 import initializer
 import centerOfMassFlow
 import metropolisHastings
-import precinct_flow as pf
+# import precinct_flow as pf
 from networkx import draw
 from matplotlib import pyplot as plt
 import pandas as pd
 import os
+
+from src.state import State
+from src.precinct_flow import PrecintFlowTempered
 
 
 print('initializing run...')
@@ -31,33 +36,7 @@ state = constructor.splitSquareLattice(state, info) ## terrible code; trying to 
 print('run initialized...')
 
 
-state_new = pf.State.from_state(state, minimum_population=360)
-
-
-# Make the district into 3
-state_new.color_to_node[2] = set()  # add new color
-state_new.node_to_color[0] = 0
-state_new.color_to_node[0].add(0)
-
-for node in state_new.graph.nodes():
-
-    centroid = state_new.graph.nodes()[node]['Centroid']
-    if centroid[0] > 20:
-        # between district 1 and 2
-        if 40 - centroid[1] - centroid[0] < 0:
-            district_id = 1
-        else:
-            district_id = 2
-    else:
-        # between district 0 and 2
-        if centroid[1] - centroid[0] > 0:
-            district_id = 0
-        else:
-            district_id = 2
-
-    state_new.flip(node, district_id)
-# end making the district into 3
-
+state_new = State.from_state(state, minimum_population=756)
 
 # load in new 'boundary' attribute to nodes - required to check simply_connectedness
 for node in state_new.graph.nodes():
@@ -67,10 +46,7 @@ for node in state_new.graph.nodes():
     # TODO update for new lattice size
 
 
-
-
-process = pf.CenterOfMassFlow(state_new, beta=1, measure_beta=2) # TODO fill in args
-
+process = PrecintFlowTempered(state_new, beta=1, measure_beta=2, center=(20, 20)) # TODO fill in args
 
 try:
 
@@ -86,7 +62,7 @@ try:
 
 
             filepath = os.path.join('gerry_pics', 'center_of_mass',
-                                     '{}_beta=2_3_body_square_lattice_{}.png'.format(date, i))
+                                     '{}_beta=2_big_run_square_lattice_{}.png'.format(date, i))
             f.savefig(filepath)
 
             plt.close()
@@ -96,5 +72,5 @@ finally:
 
     # TODO put those heatmaps here so we don't have to do later
 
-    with open('center_of_mass_3_body{}.pkl'.format(date), mode='wb') as f:
+    with open('center_of_mass_{}.pkl'.format(date), mode='wb') as f:
         pickle.dump(process, f)

@@ -8,7 +8,9 @@ import random
 
 
 from .scores import population_balance_score # needed to keep population deviation updated
-from .core import CENTROID_DIM_LENGTH
+
+CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
+
 
 
 class State(object):
@@ -57,7 +59,7 @@ class State(object):
 
 
     @classmethod
-    def from_folder(cls, folder_path, num_districts=3, minimum_population=300):
+    def from_folder(cls, folder_path, num_districts=3, minimum_population=300, **kwargs):
 
         files = os.listdir(folder_path)
 
@@ -113,7 +115,7 @@ class State(object):
         for district_id, nodes in coloring.items():
             node_to_color.update({node_id: district_id for node_id in nodes})
 
-        return State(graph, coloring=node_to_color, tallied_stats=('population'), minimum_population=minimum_population)
+        return State(graph, coloring=node_to_color, tallied_stats=('population'), minimum_population=minimum_population, **kwargs)
 
 
 
@@ -398,12 +400,15 @@ def update_district_boundary(state):
             for neighbor in state.graph.neighbors(node_id):
                 neighbor_color = state.node_to_color[neighbor]
                 key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+                # node_key = (min(neighbor, node_id), max(neighbor))
 
                 if neighbor_color != new_color:
                     state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
                 else: # color == new_color
+                    node_key = (min(neighbor, node_id), max(neighbor, node_id))
                     key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
-                    state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
+                    if node_key in state.district_boundary[key]:
+                        state.district_boundary[key].remove(node_key)
 
     else:
         perturbed_nodes = dict()
@@ -643,8 +648,6 @@ def connected_breadth_first(state, node_id, old_color):
         to_search.extend(priority_neighbors) # ensure that priority neighbors are at the top of the queue
 
 
-
-
 def naive_init_flow(node_dict, edge_list, centroid):
     # generator
     # accepts node_dict, edge_list, reoutputs in correct directed order u -> v
@@ -661,3 +664,13 @@ def naive_init_flow(node_dict, edge_list, centroid):
         yield (edge if theta1 >= theta2 else (
             edge[1], edge[0]))  # TODO the logical is wrong, doesn't account for branch cut issue
 
+
+
+def compactness_naive(state):
+
+    perimeter_dict = perimeter_naive(state)
+
+    area_dict = {district_id: sum(node['population'] for node in state.graph.nodes() if node in state.graph.color_to_node[district_id])
+                 for district_id in state.graph.color_to_node}
+
+    return sum(perimeter_dict[district_id]**2/area_dict[district_id] for district_id in state.graph.color_to_node)
