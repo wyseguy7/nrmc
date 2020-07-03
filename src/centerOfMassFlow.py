@@ -65,7 +65,7 @@ def getProjections(ce, state):
     # print(ce, centroidNode1, dists)
     d1, d2 = dists
     centroidSumsNew = {}
-    nodeCountsNew = {d : nodeCountsOG[d] for d in nodeCountsOG}
+    nodeCountsNew = {d : nodeCountsOG[d] for d in nodeCountsOG} # waiiiiit, does this set a copy?
     centroidSumsNew[d1] = (centroidSumsOG[d1][0] - centroidNode1[0],
                            centroidSumsOG[d1][1] - centroidNode1[1])
     centroidSumsNew[d2] = (centroidSumsOG[d2][0] + centroidNode1[0],

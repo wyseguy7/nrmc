@@ -61,16 +61,14 @@ try:
                  node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join('gerry_pics', 'single_node_flip',
-                                     '{}_beta=2_big_run_square_lattice_{}.png'.format(date, i))
+            filepath = os.path.join('gerry_pics', 'single_node_flip', '{}_{}_{}.png'.format(date, process.run_id, i))
             f.savefig(filepath)
-
             plt.close()
 
 
 finally:
 
     # TODO put those heatmaps here so we don't have to do later
-
-    with open('single_node_flip_{}.pkl'.format(date), mode='wb') as f:
-        pickle.dump(process, f)
+    process.save()
+    # with open('single_node_flip_{}.pkl'.format(date), mode='wb') as f:
+    #    pickle.dump(process, f)

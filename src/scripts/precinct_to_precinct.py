@@ -61,7 +61,7 @@ try:
                  node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join('gerry_pics', 'center_of_mass',
+            filepath = os.path.join('gerry_pics', 'precinct_to_precinct',
                                      '{}_beta=2_big_run_square_lattice_{}.png'.format(date, i))
             f.savefig(filepath)
 
@@ -72,5 +72,5 @@ finally:
 
     # TODO put those heatmaps here so we don't have to do later
 
-    with open('center_of_mass_{}.pkl'.format(date), mode='wb') as f:
+    with open('precinct_to_precinct_{}.pkl'.format(date), mode='wb') as f:
         pickle.dump(process, f)

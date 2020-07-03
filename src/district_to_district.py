@@ -1,5 +1,6 @@
 import random
 import numpy as np
+import copy
 
 from .core import MetropolisProcess, TemperedProposalMixin
 from .state import update_contested_edges, update_district_boundary
@@ -103,6 +104,20 @@ class DistrictToDistrictTempered(TemperedProposalMixin):
     #     super().handle_rejection(prop, state)
     #     self.involution_state[min(prop[1], prop[2]), max(prop[1], prop[2])]*= -1 # flip the appropriate involution state
 
+    def handle_acceptance(self, prop, state):
+        super().handle_acceptance(prop, state)
+        # these are all simple objects, so copy is safe - how expensive is it though?
+        self.state.contested_nodes = copy.copy(self._proposal_state.contested_nodes)
+        self.state.contested_edges = copy.copy(self._proposal_state.contested_edges)
+        self.state.articulation_points = copy.copy(self._proposal_state.articulation_points) # TODO put these in tempered proposal mixin
+
+        self.state.district_boundary = copy.copy(self._proposal_state.district_boundary)
+
+        self.state.district_boundary_updated += 1
+        self.state.articulation_points_updated += 1
+        # self.state.com_updated += 1
+        self.state.contested_edges_updated +=1
+
 
     def step(self):
         self.boundary = None
@@ -137,7 +152,7 @@ class DistrictToDistrictTempered(TemperedProposalMixin):
         else:
             boundary = self.boundary
 
-        if self.state.involution_state[boundary] == 1:
+        if state.involution_state[boundary] == 1:
             old_color, new_color = boundary
         else:
             # state = -1

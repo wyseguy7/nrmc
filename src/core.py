@@ -12,7 +12,6 @@ from .state import update_boundary_nodes, update_contested_edges, update_populat
 from .scores import cut_length_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
-CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
@@ -27,7 +26,7 @@ except ImportError:
 
 class MetropolisProcess(object):
 
-    def __init__(self, state, beta=1, measure_beta=1, log_com = True):
+    def __init__(self, state, beta=1, measure_beta=1, log_com = False):
         self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
         self.score_log = [] # for debugging
@@ -40,18 +39,22 @@ class MetropolisProcess(object):
         if log_com:
             self.com_log = []
 
+        self.uuid = uuid.uuid4().hex[:6]
+        self.make_sandbox()
+
+
+
+    @property
+    def run_id(self):
+        return "{classname}_{my_id}".format(classname=self.__class__.__name__, my_id= self.uuid)
+
 
     def make_sandbox(self):
-
-
-        my_id = uuid.uuid4().hex[:6]
-        self.filepath = "{classname}_{my_id}_measure_beta={measure_beta}beta={beta}".format(
-            measure_beta=self.measure_beta, beta=self.beta, classname=self.__class__.__name__, my_id= my_id)
-        os.makedirs(self.filepath, exist_ok=False) # ensure that the folder path exists
+        os.makedirs(self.run_id, exist_ok=False) # ensure that the folder path exists and is unique
 
     def save(self):
-        with open(os.path.join(self.filepath, 'process.pkl'), mode='wb') as f:
-            pickle.dump(self)
+        with open(os.path.join(self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
+            pickle.dump(self, f)
 
 
 
@@ -61,9 +64,9 @@ class MetropolisProcess(object):
     def score_to_proposal_prob(self, score):
         return exp(-0.5*score*self.beta)
 
-    def proposal_check(self, state, proposal):
-        # hook to support subclassing
-        return True
+    # def proposal_check(self, state, proposal):
+    #     # hook to support subclassing
+    #     return True
 
 
     def involve_state(self, state):
@@ -87,26 +90,25 @@ class MetropolisProcess(object):
                 # pop_check_failed.add(old_color)  # can't do this anymore
                 continue
 
-            if node_id in state.articulation_points[old_color] or not simply_connected(state, node_id, old_color, new_color) \
-                    or not self.proposal_check(state, (node_id, old_color, new_color)):
+            if node_id in state.articulation_points[old_color] or not simply_connected(state, node_id, old_color, new_color):
                 continue # will disconnect the graph
 
             yield (node_id, old_color, new_color)
 
 
-    def proposal_checks(self, state, proposal):
-        # deprecated
-        node_id, new_color, old_color = proposal # should really make a named tuple for this, tired of unpacking
-
-        if self.state.minimum_population is not None and not check_population(state, node_id, old_color, self.state.minimum_population):
-            return False
-
-        # if state.check_connectedness and not()
-        # if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
-        #                                        and simply_connected(state, node_id,old_color, new_color)):
-        #     return False
-
-        return True
+    # def proposal_checks(self, state, proposal):
+    #     # deprecated
+    #     node_id, new_color, old_color = proposal # should really make a named tuple for this, tired of unpacking
+    #
+    #     if self.state.minimum_population is not None and not check_population(state, node_id, old_color, self.state.minimum_population):
+    #         return False
+    #
+    #     # if state.check_connectedness and not()
+    #     # if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
+    #     #                                        and simply_connected(state, node_id,old_color, new_color)):
+    #     #     return False
+    #
+    #     return True
 
     def score_proposal(self, node_id, old_color, new_color, state):
         return cut_length_score(state, (node_id, old_color, new_color))
