@@ -6,10 +6,16 @@ import numpy as np
 import itertools
 import random
 
-
+# from src.core import cython_biconnected
 from .scores import population_balance_score # needed to keep population deviation updated
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
+try:
+    from biconnected import calculate_com_inner
+    cython_biconnected = True
+except ImportError:
+    cython_biconnected = False
+
 
 
 
@@ -320,27 +326,6 @@ def calculate_com_naive(state, weight_attribute=None):
                                          )/total_weight[district_id] for j in range(CENTROID_DIM_LENGTH)], dtype='d')
     return com, total_weight
 
-
-def calculate_com_one_step(state, proposal, weight_attribute=None):
-
-    node_id, old_color, new_color = proposal
-
-#     com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
-#     total_weight = copy.deepcopy(state.com_total_weight)
-    node = state.graph.nodes()[node_id] # how expensive is this lookup, anyways?
-
-    weight = node[weight_attribute] if weight_attribute is not None else 1
-
-
-    centroid_new_color = (node['Centroid'] * weight + state.com_centroid[new_color] * state.com_total_weight[new_color])/(
-            state.com_total_weight[new_color] + weight)
-    centroid_old_color = (-node['Centroid'] * weight + state.com_centroid[old_color] * state.com_total_weight[old_color])/(
-            state.com_total_weight[old_color] - weight)
-
-    total_weight_new_color = state.com_total_weight[new_color] + weight
-    total_weight_old_color = state.com_total_weight[old_color] - weight
-
-    return centroid_new_color, centroid_old_color, total_weight_new_color, total_weight_old_color
 
 def update_center_of_mass(state):
 
@@ -674,3 +659,33 @@ def compactness_naive(state):
                  for district_id in state.graph.color_to_node}
 
     return sum(perimeter_dict[district_id]**2/area_dict[district_id] for district_id in state.graph.color_to_node)
+
+
+def calculate_com_one_step(state, proposal, weight_attribute=None):
+    node_id, old_color, new_color = proposal
+
+    #     com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
+    #     total_weight = copy.deepcopy(state.com_total_weight)
+    node = state.graph.nodes()[node_id]  # how expensive is this lookup, anyways?
+
+    weight = node[weight_attribute] if weight_attribute is not None else 1
+
+    if cython_biconnected:
+        output_new = calculate_com_inner(node['Centroid'], weight, state.com_centroid[new_color],
+                                         state.com_total_weight[new_color])
+        output_old = calculate_com_inner(node['Centroid'], -weight, state.com_centroid[old_color],
+                                         state.com_total_weight[old_color])
+
+        return np.array(output_new[0:2], dtype='d'), np.array(output_old[0:2], dtype='d'), output_new[2], output_old[2]
+
+    else:
+
+        centroid_new_color = (node['Centroid'] * weight + state.com_centroid[new_color] * state.com_total_weight[new_color])/(
+                state.com_total_weight[new_color] + weight)
+        centroid_old_color = (-node['Centroid'] * weight + state.com_centroid[old_color] * state.com_total_weight[old_color])/(
+                state.com_total_weight[old_color] - weight)
+
+        total_weight_new_color = state.com_total_weight[new_color] + weight
+        total_weight_old_color = state.com_total_weight[old_color] - weight
+
+        return centroid_new_color, centroid_old_color, total_weight_new_color, total_weight_old_color

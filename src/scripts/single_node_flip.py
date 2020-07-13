@@ -6,6 +6,7 @@ import pickle
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
+folder_path = '/gtmp/etw16/runs/'
 
 
 import constructor
@@ -20,6 +21,7 @@ from networkx import draw
 from matplotlib import pyplot as plt
 import pandas as pd
 import os
+import numpy as np
 
 
 print('initializing run...')
@@ -45,13 +47,14 @@ for node in state_new.graph.nodes():
     # TODO update for new lattice size
 
 
-process = SingleNodeFlip(state_new, beta=1, measure_beta=2) # TODO fill in args
+new_beta = 2
+process = SingleNodeFlip(state_new, beta=new_beta/2., measure_beta=new_beta) # TODO fill in args
 
 
 try:
 
     date = str(pd.datetime.today().date())
-    for i in range(10000000):
+    for i in range(30000000):
         process.step()
 
         if i % 10000 == 0:
@@ -61,7 +64,7 @@ try:
                  node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join('gerry_pics', 'single_node_flip', '{}_{}_{}.png'.format(date, process.run_id, i))
+            filepath = os.path.join(process.folder_path, 'single_node_flip', '{}_{}_{}.png'.format(date, process.run_id, i))
             f.savefig(filepath)
             plt.close()
 

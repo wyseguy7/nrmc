@@ -7,26 +7,42 @@ import random
 import itertools
 import networkx as nx
 
-from .state import update_boundary_nodes, update_contested_edges, update_population, check_population, simply_connected, connected_breadth_first, update_center_of_mass
-
-from .scores import cut_length_score
+from .state import update_boundary_nodes, update_contested_edges, update_population, check_population, simply_connected, connected_breadth_first, update_center_of_mass, update_district_boundary, update_perimeter_aggressive
+from .scores import cut_length_score, population_balance_score, compactness_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
 try:
-    from biconnected import biconnected_dfs, dot_product
+    from biconnected import biconnected_dfs, dot_product, calculate_com_inner
     cython_biconnected = True
 except ImportError:
     print("No Cython for you!")
     cython_biconnected = False
 
 
+score_lookup = {'cut_length': cut_length_score,
+                'compactness': compactness_score,
+                'population_balance': population_balance_score}
+
+score_updaters = {'cut_length': [],
+                  'compactness': [update_perimeter_aggressive],
+                  'population_balance': [update_population]}
 
 class MetropolisProcess(object):
 
-    def __init__(self, state, beta=1, measure_beta=1, log_com = False):
+    def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
+                 score_funcs=('cut_length'), score_weights=(1.)):
+
+        self.score_list = []
+        self.score_updaters = []
+
+        for score, score_weight in zip(score_funcs, score_weights):
+            self.score_list.append((score_weight, score_lookup[score]))
+            for updater in score_updaters[score]: # these are functions that need to run before computing a particular score
+                self.score_updaters.append(updater)
+
         self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
         self.score_log = [] # for debugging
@@ -38,11 +54,9 @@ class MetropolisProcess(object):
         self.log_com = log_com
         if log_com:
             self.com_log = []
-
+        self.folder_path = folder_path
         self.uuid = uuid.uuid4().hex[:6]
         self.make_sandbox()
-
-
 
     @property
     def run_id(self):
@@ -50,10 +64,10 @@ class MetropolisProcess(object):
 
 
     def make_sandbox(self):
-        os.makedirs(self.run_id, exist_ok=False) # ensure that the folder path exists and is unique
+        os.makedirs(os.path.join(self.folder_path, self.run_id), exist_ok=False) # ensure that the folder path exists and is unique
 
     def save(self):
-        with open(os.path.join(self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
+        with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
 
 
@@ -63,10 +77,6 @@ class MetropolisProcess(object):
 
     def score_to_proposal_prob(self, score):
         return exp(-0.5*score*self.beta)
-
-    # def proposal_check(self, state, proposal):
-    #     # hook to support subclassing
-    #     return True
 
 
     def involve_state(self, state):
@@ -96,22 +106,14 @@ class MetropolisProcess(object):
             yield (node_id, old_color, new_color)
 
 
-    # def proposal_checks(self, state, proposal):
-    #     # deprecated
-    #     node_id, new_color, old_color = proposal # should really make a named tuple for this, tired of unpacking
-    #
-    #     if self.state.minimum_population is not None and not check_population(state, node_id, old_color, self.state.minimum_population):
-    #         return False
-    #
-    #     # if state.check_connectedness and not()
-    #     # if state.check_connectedness and not ( connected_breadth_first(state, node_id, old_color)
-    #     #                                        and simply_connected(state, node_id,old_color, new_color)):
-    #     #     return False
-    #
-    #     return True
-
     def score_proposal(self, node_id, old_color, new_color, state):
-        return cut_length_score(state, (node_id, old_color, new_color))
+        score_sum = 0.
+        for score_weight, score_func  in self.score_list:
+            score_sum += score_weight * score_func(state, (node_id, old_color, new_color))
+        return score_sum
+
+    # def score_proposal(self, node_id, old_color, new_color, state):
+    #     return cut_length_score(state, (node_id, old_color, new_color))
 
     def get_directed_edges(self, state):
         # default behavior gets all edges in each direction
@@ -122,6 +124,10 @@ class MetropolisProcess(object):
         # produces a mapping {proposal: score} for each edge in get_directed_edges
 
         scored_proposals = {}
+
+        for updater in self.score_updaters:
+            updater(state)
+
 
         for node_id, neighbor in self.get_directed_edges(state):
             old_color = state.node_to_color[node_id]
@@ -212,8 +218,22 @@ class TemperedProposalMixin(MetropolisProcess):
         self.involve_state(self.state)
         self.involve_state(self._proposal_state)
 
+
     def handle_acceptance(self, prop, state):
         super().handle_acceptance(prop, state)
+
+        # these are all simple objects, so copy is safe - how expensive is it though?
+        self.state.contested_nodes = copy.copy(self._proposal_state.contested_nodes)
+        self.state.contested_edges = copy.copy(self._proposal_state.contested_edges)
+        self.state.articulation_points = copy.copy(self._proposal_state.articulation_points)
+        self.state.population_counter = copy.copy(self._proposal_state.population_counter)
+        self.state.population_deviation = copy.copy(self._proposal_state.population_deviation)
+
+        self.state.articulation_points_updated += 1
+        self.state.contested_edges_updated +=1
+        self.state.population_counter_updated += 1
+
+
 
     def handle_rejection(self, prop, state):
         super().handle_rejection(prop, state)

@@ -25,6 +25,112 @@ def state_log_to_coloring(process):
 
     return coloring_array
 
+def compute_autocorr_new(process, points=1000, max_distance=5000000, intervals=200):
+    if len(process.state.move_log) < max_distance:
+        raise ValueError("Must specify max_distance lower than the sampling run")
+
+    move_loc = random.sample(list(range(len(process.state.move_log) - max_distance)), points)
+
+    interval_fixed = np.arange(0, max_distance, step=int(max_distance/intervals))
+    # interval_loc = move_loc +
+
+    # num_colors = len(process.state.color_to_node)
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    node_to_idx = {b: a for a, b in enumerate(process.state.node_to_color.keys())}
+
+    move_loc_to_state = {idx: None for idx in move_loc}
+
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+    for i in range(len(process.state.move_log)):
+        if process.state.move_log[i] is not None:
+            # handle the move
+            node_id, old_color, new_color = process.state.move_log[i]
+            state_array[node_to_idx[node_id], old_color] = 0
+            state_array[node_to_idx[node_id], new_color] = 1
+
+        if i in move_loc_to_state:
+            # move_loc_to_state[i] = state_array.copy()
+            move_loc_to_state[i] = copy.deepcopy(state_array.copy())
+
+
+    iteration_to_interval = collections.defaultdict(list)
+
+    for loc in move_loc:
+        for dist in interval_fixed:
+            iteration_to_interval[loc+dist].append((loc, dist))
+
+    # subtract off mu from each array
+    mu = np.full(shape=state_array.shape, fill_value=1 / len(process.state.color_to_node))
+    for move_loc in move_loc_to_state:
+        move_loc_to_state[move_loc] -= mu
+
+    # reset state array
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+    records = collections.defaultdict(dict)
+
+    for i in range(len(process.state.move_log)):
+        if process.state.move_log[i] is not None:
+            # handle the move
+            node_id, old_color, new_color = process.state.move_log[i]
+            state_array[node_to_idx[node_id], old_color] = 0
+            state_array[node_to_idx[node_id], new_color] = 1
+
+        adj_state = (state_array - mu).T
+
+        for loc, dist in iteration_to_interval[i]:
+            stat = np.trace(np.matmul(adj_state, move_loc_to_state[loc]))
+            records[loc][dist] = stat
+
+
+    return records
+
+
+def find_corner_moves(process):
+
+    corner_moves = list()
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    node_to_idx = {b: a for a, b in enumerate(process.state.node_to_color.keys())}
+
+    corner_nodes = [0, 40, 1640, 1680] # SW, SE, NW, NE corners respectively
+
+    sw_idx = node_to_idx[0]
+    se_idx = node_to_idx[40]
+    nw_idx = node_to_idx[1640]
+    ne_idx = node_to_idx[1680]
+
+    def corner_ownership(state_array):
+        # node that this function will return None if corner ownership is not well-defined, which happens frequently
+        if state_array[sw_idx][0]==state_array[nw_idx][0]:
+            if state_array[se_idx][0] == state_array[ne_idx][0]:
+                return 0 + 2*state_array[sw_idx][0]
+        elif state_array[sw_idx][0] == state_array[se_idx][0]:
+                if state_array[nw_idx][0] == state_array[ne_idx][0]:
+                    return 1 + 2*state_array[sw_idx][0]
+
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+    response = []
+    for i in range(len(process.state.move_log)):
+        if process.state.move_log[i] is not None:
+            # handle the move
+            node_id, old_color, new_color = process.state.move_log[i]
+            state_array[node_to_idx[node_id], old_color] = 0
+            state_array[node_to_idx[node_id], new_color] = 1
+
+        response.append(corner_ownership(state_array))
+
+    return response
+
+
 def compute_autocorr_fixed_points(process, points=1000, max_distance=500000):
     if len(process.state.move_log) < max_distance:
         raise ValueError("Must specify max_distance lower than the sampling run")

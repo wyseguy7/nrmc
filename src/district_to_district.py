@@ -107,16 +107,9 @@ class DistrictToDistrictTempered(TemperedProposalMixin):
     def handle_acceptance(self, prop, state):
         super().handle_acceptance(prop, state)
         # these are all simple objects, so copy is safe - how expensive is it though?
-        self.state.contested_nodes = copy.copy(self._proposal_state.contested_nodes)
-        self.state.contested_edges = copy.copy(self._proposal_state.contested_edges)
-        self.state.articulation_points = copy.copy(self._proposal_state.articulation_points) # TODO put these in tempered proposal mixin
 
         self.state.district_boundary = copy.copy(self._proposal_state.district_boundary)
-
         self.state.district_boundary_updated += 1
-        self.state.articulation_points_updated += 1
-        # self.state.com_updated += 1
-        self.state.contested_edges_updated +=1
 
 
     def step(self):

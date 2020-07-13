@@ -22,7 +22,7 @@ cdef int fast_min(int a, int b):
         return b
 
 
-cpdef dot_product(double[:] a, double[:] b, double[:] center):
+cpdef float dot_product(double[:] a, double[:] b, double[:] center):
 
     cdef float vec_a_b[2]
     cdef float midpoint[2]
@@ -50,9 +50,32 @@ cpdef dot_product(double[:] a, double[:] b, double[:] center):
     return dp/sqrt(norm_center)/sqrt(norm_a_b)
 
 
-# cpdef vector[int] mapping_test( unordered_map[int, vector[int]] node_adj):
-#     for it in node_adj.begin():
-#         print(it)
+cpdef calculate_com_inner(double[:] centroid, double weight,
+                                                     double[:] com_centroid, double com_weight):
+
+    # node_id, old_color, new_color = proposal
+
+#     com_centroid = copy.deepcopy(state.com_centroid) # ugh, should this function just be side-effecting? how bad is this cost?
+#     total_weight = copy.deepcopy(state.com_total_weight)
+    # node = state.graph.nodes()[node_id] # how expensive is this lookup, anyways?
+
+    # weight = node[weight_attribute] if weight_attribute is not None else 1
+    cdef double[2] weighted_centroid
+
+
+    weighted_centroid[0] = weight*centroid[0]
+    weighted_centroid[1] = weight*centroid[1]
+    # centroid[1] *= weight # now a weighted centroid
+
+    cdef double[3] output # is this correct way of describing?
+
+    output[2] = weight + com_weight
+
+    for i in range(2):
+        output[i] = (weighted_centroid[i] + com_centroid[i]*com_weight)/output[2]
+
+    return output
+
 
 # cpdef vector[int] biconnected_dfs(unordered_map[int, vector[int]] node_adj):
 cpdef vector[int] biconnected_dfs(vector[int] node_list, unordered_map[int, vector[int]] node_adj):

@@ -6,6 +6,7 @@ import pickle
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
+folder_path = '/gtmp/etw16/runs/'
 
 
 import constructor
@@ -44,14 +45,17 @@ for node in state_new.graph.nodes():
     state_new.graph.nodes()[node]['population'] = 1
     # TODO update for new lattice size
 
+import numpy as np
+new_beta = 2
+process = DistrictToDistrictTempered(state_new, beta=new_beta/2., measure_beta=new_beta) # TODO fill in args
 
-process = DistrictToDistrictTempered(state_new, beta=1, measure_beta=2) # TODO fill in args
+
 
 
 try:
 
     date = str(pd.datetime.today().date())
-    for i in range(10000000):
+    for i in range(30000000):
         process.step()
 
         if i % 10000 == 0:
@@ -61,16 +65,14 @@ try:
                  node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join('gerry_pics', 'district_to_district',
-                                     '{}_beta=2_big_run_tempered_square_lattice_{}.png'.format(date, i))
+            filepath = os.path.join(process.folder_path, 'district_to_district', 'tempered_{}_{}_{}.png'.format(date, process.run_id, i))
             f.savefig(filepath)
-
             plt.close()
 
 
 finally:
 
     # TODO put those heatmaps here so we don't have to do later
-
-    with open('district_to_district_tempered_{}.pkl'.format(date), mode='wb') as f:
-        pickle.dump(process, f)
+    process.save()
+    # with open('single_node_flip_{}.pkl'.format(date), mode='wb') as f:
+    #    pickle.dump(process, f)
