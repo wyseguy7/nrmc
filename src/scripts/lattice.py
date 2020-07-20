@@ -35,7 +35,7 @@ def create_square_lattice(n=40, boundary=None, apd=0.45):
     for i in range(n):
         for j in range(n):
             node_id = i * n + j
-            on_boundary = (i in (0, 40) or j in (0, 40))
+            on_boundary = (i in (0, n-1) or j in (0, n-1))
             g.add_node(node_id, Centroid=[i, j], boundary=on_boundary, population=1)
 
             if i != 0:
