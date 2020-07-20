@@ -327,6 +327,116 @@ def rolling_weighted_mean(sample, times, weights, window_size=1000):
             end_idx -= 1
 
 
+def coreset_transitions(process, interval=0.5):
+
+
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    node_to_idx = {b: a for a, b in enumerate(process.state.node_to_color.keys())}
+
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+
+    # assumes a rectangular lattice
+    centroids = {i: process.state.graph.nodes()[i]['Centroid'] for i in node_to_idx.keys()}
+    x_coord = [i[0] for i in centroids.values()]
+    y_coord = [i[1] for i in centroids.values()]
+    bounding_box = ((min(x_coord), max(x_coord)), (min(y_coord), max(y_coord)))
+    dimensions = bounding_box[0][1] - bounding_box[0][0], bounding_box[1][1] - bounding_box[1][0],
+
+    midpoint = (
+    (bounding_box[0][0] + bounding_box[0][1]) / 2, (bounding_box[1][0] + bounding_box[1][1]) / 2)  # x, y midpoint
+
+    orientation_idx = 0
+    other_idx = 1
+
+    # find indices for horizontal orientation
+    sw_idx, se_idx, ne_idx, nw_idx = None, None, None, None
+    sw_ext, se_ext, nw_ext, ne_ext = bounding_box[1][0], bounding_box[1][0], bounding_box[1][1], bounding_box[1][
+        1]  # change for vertical
+
+    for idx, centroid in centroids.items():
+
+        if centroid[orientation_idx] == bounding_box[orientation_idx][0]:  # on western boundary
+            if centroid[other_idx] > dimensions[other_idx] * interval / 2 + midpoint[other_idx] and centroid[
+                other_idx] < nw_ext:
+                nw_ext = centroid[other_idx]
+                nw_idx = idx
+            if centroid[other_idx] < midpoint[other_idx] - dimensions[other_idx] * interval / 2 and centroid[
+                other_idx] > sw_ext:
+                sw_ext = centroid[other_idx]
+                sw_idx = idx
+
+        elif centroid[orientation_idx] == bounding_box[orientation_idx][1]:  # on eastern boundary
+            if centroid[other_idx] > dimensions[other_idx] * interval / 2 + midpoint[other_idx] and centroid[
+                other_idx] < ne_ext:
+                ne_ext = centroid[other_idx]
+                ne_idx = idx
+            if centroid[other_idx] < midpoint[other_idx] - dimensions[other_idx] * interval / 2 and centroid[
+                other_idx] > se_ext:
+                se_ext = centroid[other_idx]
+                se_idx = idx
+
+    horizontal_idx = [node_to_idx[node] for node in [sw_idx, se_idx, ne_idx, nw_idx]]
+
+    # find indices for vertical orientation
+    sw_idx, se_idx, ne_idx, nw_idx = None, None, None, None
+    sw_ext, se_ext, nw_ext, ne_ext = bounding_box[0][0], bounding_box[0][1], bounding_box[0][0], bounding_box[0][1]
+
+    orientation_idx = 1
+    other_idx = 0
+
+    for idx, centroid in centroids.items():
+
+        if centroid[orientation_idx] == bounding_box[orientation_idx][0]:  # on southern boundary
+            if centroid[other_idx] > dimensions[other_idx] * interval / 2 + midpoint[other_idx] and centroid[
+                other_idx] < se_ext:
+                se_ext = centroid[other_idx]
+                se_idx = idx
+            if centroid[other_idx] < midpoint[other_idx] - dimensions[other_idx] * interval / 2 and centroid[
+                other_idx] > sw_ext:
+                sw_ext = centroid[other_idx]
+                sw_idx = idx
+
+        elif centroid[orientation_idx] == bounding_box[orientation_idx][1]:  # on northern boundary
+            if centroid[other_idx] > dimensions[other_idx] * interval / 2 + midpoint[other_idx] and centroid[
+                other_idx] < ne_ext:
+                ne_ext = centroid[other_idx]
+                ne_idx = idx
+            if centroid[other_idx] < midpoint[other_idx] - dimensions[other_idx] * interval / 2 and centroid[
+                other_idx] > nw_ext:
+                nw_ext = centroid[other_idx]
+                nw_idx = idx
+
+    vertical_idx = [node_to_idx[node] for node in [sw_idx, se_idx, ne_idx, nw_idx]]
+
+    def corner_ownership(state_array):
+        # sw_idx, se_idx, ne_idx, nw_idx
+
+        if state_array[horizontal_idx[0]][0] != state_array[horizontal_idx[3]][0] and state_array[horizontal_idx[1]][0] != \
+                state_array[horizontal_idx[2]][0]:
+            # cut is horizontal
+            return 0 + 2 * state_array[horizontal_idx[0]][0]
+
+        # se corner doesn't match sw corner and ne corner doesn't match nw corner
+        elif state_array[vertical_idx[0]][0] != state_array[vertical_idx[1]][0] and state_array[vertical_idx[2]][0] != \
+                state_array[vertical_idx[3]][0]:
+            return 1 + 2 * state_array[vertical_idx[0]][0]
+
+
+    response = []
+    for i in range(len(process.state.move_log)):
+        if process.state.move_log[i] is not None:
+            # handle the move
+            node_id, old_color, new_color = process.state.move_log[i]
+            state_array[node_to_idx[node_id], old_color] = 0
+            state_array[node_to_idx[node_id], new_color] = 1
+
+        response.append(corner_ownership(state_array))
+
+
+    return response
 
 
 

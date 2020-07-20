@@ -1,6 +1,7 @@
 import sys
 import pickle
 
+import networkx as nx
 
 # sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\')
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
@@ -8,33 +9,72 @@ sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO mak
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 
 
-import constructor
-import districtingGraph
-import initializer
-import centerOfMassFlow
-import metropolisHastings
+# import constructor
+# import districtingGraph
+# import initializer
+# import centerOfMassFlow
+# import metropolisHastings
 from src.state import State
 
 
-print('initializing run...')
-state, args = initializer.setRunParametersFromCommandLine([])
-state["step"] = 0
-proposal, args = centerOfMassFlow.define(args)
-info = args
+# print('initializing run...')
+# state, args = initializer.setRunParametersFromCommandLine([])
+# state["step"] = 0
+# proposal, args = centerOfMassFlow.define(args)
+# info = args
+#
+# info = initializer.fillMissingInfoFields(info)
+# state = initializer.determineStateInfo(state, info)
+# # state = constructor.contructPlan(state, info)
+# state = constructor.splitSquareLattice(state, info) ## terrible code; trying to move fast
+# print('run initialized...')
 
-info = initializer.fillMissingInfoFields(info)
-state = initializer.determineStateInfo(state, info)
-# state = constructor.contructPlan(state, info)
-state = constructor.splitSquareLattice(state, info) ## terrible code; trying to move fast
-print('run initialized...')
+
+def create_square_lattice(n=40, boundary=None, apd=0.45):
+    g = nx.Graph()
+    for i in range(n):
+        for j in range(n):
+            node_id = i * n + j
+            on_boundary = (i in (0, 40) or j in (0, 40))
+            g.add_node(node_id, Centroid=[i, j], boundary=on_boundary, population=1)
+
+            if i != 0:
+                # add western node
+                g.add_edge(node_id, (i - 1) * n + j)
+
+            if j != 0:
+                g.add_edge(node_id, i * n + j - 1)
+                # add southern node
+
+    if boundary is None:
+        # construct the classic cut boundary
+        lb = int(n / 2)
+        ub = int(n / 2) + 1
+        boundary = [(u, v) for u, v in g.edges if
+                    g.nodes[u]['Centroid'][1] in (lb, ub) and g.nodes[v]['Centroid'][1] in (lb, ub)]
+
+    removed_edges = {}
+    for u, v in boundary:  # list of conflicted edges
+
+        removed_edges[(u, v)] = g.edges[(u, v)]  # store relevant data
+        g.remove_edge(u, v)
+
+    # nodes_to_color = g.nodes()
+    color_to_node = dict()
+    node_to_color = dict()
+
+    for district_id, comp in enumerate(nx.connected_components(g)):
+
+        color_to_node[district_id] = comp
+
+        for node in comp:
+            node_to_color[node] = district_id
+
+    # add the edges back in
+    for (u, v), data in removed_edges.items():
+        g.add_edge(u, v, **data)
 
 
-state_new = State.from_state(state, minimum_population=756)
+    return State(g, node_to_color, tallied_stats=(), log_contested_edges=True, minimum_population=len(g)*apd)
 
-# load in new 'boundary' attribute to nodes - required to check simply_connectedness
-for node in state_new.graph.nodes():
-    centroid = state_new.graph.nodes()[node]['Centroid']
-    state_new.graph.nodes()[node]['boundary'] = (centroid[0] in (0, 40) or centroid[1] in (0, 40))
-    state_new.graph.nodes()[node]['population'] = 1
-    # TODO update for new lattice size
 
