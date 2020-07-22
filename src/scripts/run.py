@@ -30,16 +30,38 @@ parser.add_argument('--output_path', type=str, default='/gtmp/etw16/runs/')
 parser.add_argument('--ideal_pop', type=float, default=None)
 parser.add_argument('--diagonal', type=str, default='no')
 parser.add_argument('--n', type=int, default=40)
+parser.add_argument('--involution', type=int, default=1)
+parser.add_argument('--num_districts', type=int, default=2)
+parser.add_argument('--apd', type=float, default=0.1)
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
+
+process_args = {'measure_beta': args.measure_beta,
+             'beta': args.beta,
+             'score_funcs': args.score_func,
+             'score_weights': args.score_weights,
+             'folder_path': args.output_path,
+                # 'ideal_pop': args.ideal_pop
+                }
+
+state_args = {
+    'n': args.n,
+    'apd': args.apd,
+    'involution': args.involution,
+    'ideal_pop': args.ideal_pop
+}
+
 
 
 if args.folder is None:
     # use a square lattice
     from src.scripts.lattice import create_square_lattice
 
-    state_new = create_square_lattice(n=args.n)
+    if args.num_districts != 2:
+        raise ValueError("Only 2 district mode supported for lattice")
+
+    state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal == 'yes':
         # TODO next time just generate the boundary for this instead
@@ -52,34 +74,28 @@ if args.folder is None:
 
 else:
     # create state from the relevant folder
-    state_new = State.from_folder(args.folder)
 
-state_new.ideal_pop = args.ideal_pop
+    state_new = State.from_folder(args.folder, **state_args)
 
+# state_new.ideal_pop = args.ideal_pop
+# state_new.involution = args.involution
 
-args_dict = {'measure_beta': args.measure_beta,
-             'beta': args.beta,
-             'score_funcs': args.score_func,
-             'score_weights': args.score_weights,
-             'folder_path': args.output_path,
-             # 'ideal_pop': args.ideal_pop
-             }
 
 if args.process == 'single_node_flip':
     from src.single_node_flip import SingleNodeFlip
-    process = SingleNodeFlip(state=state_new, **args_dict)
+    process = SingleNodeFlip(state=state_new, **process_args)
 
 elif args.process == 'single_node_flip_tempered':
     from src.single_node_flip import SingleNodeFlipTempered
-    process = SingleNodeFlipTempered(state=state_new, **args_dict)
+    process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
     from src.district_to_district import DistrictToDistrictTempered
-    process = DistrictToDistrictTempered(state=state_new, **args_dict)
+    process = DistrictToDistrictTempered(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
     from src.center_of_mass import CenterOfMassFlow
-    process = CenterOfMassFlow(state=state_new, **args_dict)
+    process = CenterOfMassFlow(state=state_new, **process_args)
 
 else:
     raise ValueError("Please select a valid process type")

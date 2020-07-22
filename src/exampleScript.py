@@ -6,6 +6,8 @@ import constructor
 import districtingGraph
 import initializer
 import centerOfMassFlow
+import singleNodeFlip
+
 import metropolisHastings
 # import dataWriter
 
@@ -20,7 +22,8 @@ reload(metropolisHastings)
 print('initializing run...')
 state, args = initializer.setRunParametersFromCommandLine(sys.argv)
 state["step"] = 0
-proposal, args = centerOfMassFlow.define(args)
+# proposal, args = centerOfMassFlow.define(args)
+proposal, args = singleNodeFlip.define(args)
 info = args
 
 info = initializer.fillMissingInfoFields(info)

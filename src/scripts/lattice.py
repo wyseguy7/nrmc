@@ -1,6 +1,7 @@
 import sys
 import pickle
 
+import numpy as np
 import networkx as nx
 
 # sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\')
@@ -8,35 +9,16 @@ sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 
-
-# import constructor
-# import districtingGraph
-# import initializer
-# import centerOfMassFlow
-# import metropolisHastings
 from src.state import State
 
 
-# print('initializing run...')
-# state, args = initializer.setRunParametersFromCommandLine([])
-# state["step"] = 0
-# proposal, args = centerOfMassFlow.define(args)
-# info = args
-#
-# info = initializer.fillMissingInfoFields(info)
-# state = initializer.determineStateInfo(state, info)
-# # state = constructor.contructPlan(state, info)
-# state = constructor.splitSquareLattice(state, info) ## terrible code; trying to move fast
-# print('run initialized...')
-
-
-def create_square_lattice(n=40, boundary=None, apd=0.45):
+def create_square_lattice(n=40, boundary=None, **kwargs):
     g = nx.Graph()
     for i in range(n):
         for j in range(n):
             node_id = i * n + j
             on_boundary = (i in (0, n-1) or j in (0, n-1))
-            g.add_node(node_id, Centroid=[i, j], boundary=on_boundary, population=1)
+            g.add_node(node_id, Centroid=np.array([i, j], dtype='d'), boundary=on_boundary, population=1)
 
             if i != 0:
                 # add western node
@@ -75,6 +57,6 @@ def create_square_lattice(n=40, boundary=None, apd=0.45):
         g.add_edge(u, v, **data)
 
 
-    return State(g, node_to_color, tallied_stats=(), log_contested_edges=True, minimum_population=len(g)*apd)
+    return State(g, node_to_color, **kwargs)
 
 

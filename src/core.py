@@ -96,7 +96,10 @@ class MetropolisProcess(object):
             # if old_color in pop_check_failed:
             #     continue
 
-            if self.state.minimum_population is not None and not check_population(state, node_id, old_color, self.state.minimum_population):
+            if self.state.minimum_population is not None and not check_population(state,
+                                                                                  node_id, old_color, new_color,
+                                                                                  minimum=self.state.minimum_population,
+                                                                                  maximum=self.state.maximum_population):
                 # pop_check_failed.add(old_color)  # can't do this anymore
                 continue
 

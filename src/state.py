@@ -21,8 +21,8 @@ except ImportError:
 
 class State(object):
 
-    def __init__(self, graph, coloring, tallied_stats=('node_count','population'), log_contested_edges = True,
-                 coerce_int = True, minimum_population=None, ideal_pop = None):
+    def __init__(self, graph, coloring, log_contested_edges = True,
+                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1):
 
 
         if coerce_int:
@@ -39,33 +39,30 @@ class State(object):
         for node_id, district_id in coloring.items():
             d[district_id].add(node_id)
         self.color_to_node = dict(d)
+
+        num_districts = len(self.color_to_node)
+        minimum_population = len(self.graph.nodes())/num_districts - len(self.graph.nodes())*apd/2
+        maximum_population = len(self.graph.nodes())/num_districts + len(self.graph.nodes())*apd/2
+
         self.minimum_population = minimum_population
+        self.maximum_population = maximum_population
         self.iteration = 0
         self.state_log = []
         self.move_log = [] # move log is state_log plus 'None' each time we make an involution
         self.ideal_pop = ideal_pop
-
-        self.stat_tally = collections.defaultdict(dict) # TODO rip this out?
-
-        # for district_id, nodes in self.color_to_node.items():
-        #     for stat in tallied_stats:
-        #         self.stat_tally[stat][district_id] = sum(graph[node_id][stat] for node_id in nodes)
-        #
-        # self.tallied_stats = tallied_stats
+        self.involution = involution
 
         self.log_contested_edges = log_contested_edges # rip these out into a mixin?
         self.contested_edge_counter = collections.defaultdict(int)
         self.contested_node_counter = collections.defaultdict(int)
 
-        self.check_connectedness = True # TODO remove
 
         self.connected_true_counter = [] # TODO remove after finished debugging
         self.connected_false_counter = []
 
-
-
     @classmethod
-    def from_folder(cls, folder_path, num_districts=3, minimum_population=300, **kwargs):
+    def from_folder(cls, folder_path, num_districts=3, apd=0.1, **kwargs):
+
 
         files = os.listdir(folder_path)
 
@@ -104,14 +101,19 @@ class State(object):
             if 'boundary' not in graph.nodes()[node_id]:
                 graph.nodes()[node_id]['boundary'] = False
 
+        minimum_population = len(graph.nodes())/num_districts - len(graph.nodes())*apd/2
+        maximum_population = len(graph.nodes())/num_districts + len(graph.nodes())*apd/2
+
         # loop until we achieve a valid coloring
         while True:
             valid_coloring = True
             coloring = greedy_graph_coloring(graph, num_districts=num_districts)
             # check minimum population is valid
             for color, nodes in coloring.items():
-                if sum(graph.nodes()[node_id]['population'] for node_id in nodes) < minimum_population:
+                if sum(graph.nodes()[node_id]['population'] for node_id in nodes) < minimum_population or (
+                    sum(graph.nodes()[node_id]['population'] for node_id in nodes) > maximum_population):
                     valid_coloring = False
+                    break
 
             if valid_coloring:
                 break
@@ -121,7 +123,7 @@ class State(object):
         for district_id, nodes in coloring.items():
             node_to_color.update({node_id: district_id for node_id in nodes})
 
-        return State(graph, coloring=node_to_color, tallied_stats=('population'), minimum_population=minimum_population, **kwargs)
+        return State(graph, coloring=node_to_color, apd=apd, **kwargs)
 
 
 
@@ -587,8 +589,10 @@ def update_population(state):
 
     state.population_counter_updated = state.iteration
 
-def check_population(state, node_id, old_color, minimum=400):
-     return (state.population_counter[old_color] - state.graph.nodes()[node_id]['population']) > minimum
+def check_population(state, node_id, old_color, new_color, minimum=400, maximum=1200):
+     return ((state.population_counter[old_color] - state.graph.nodes()[node_id]['population']) > minimum
+     and state.population_counter[new_color] + state.graph.nodes()[node_id]['population'] < maximum
+     )
 
 def population_balance_naive(state, ideal_pop):
     return np.sqrt(sum((sum([state.graph.nodes()[node]['population'] for node in nodes]) - ideal_pop)**2
