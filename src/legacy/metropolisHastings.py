@@ -40,11 +40,14 @@ def run(state, proposal, info):
             # print("accept step", step, p, u)
             state = stateExt.updateState(move, state, info)
             state["flipCountsPerNode"][move[0]] += 1
-            writer.recordState(step, state, info)
-            writer.recordStateData(step, state, info)
+            # writer.recordState(step, state, info)
+            # writer.recordStateData(step, state, info)
         else:
             # print("flip step", step, p, u)
             state["flowDir"] *= -1
+            # writer.recordState(step, state, info)
+            # writer.recordStateData(step, state, info)
+        if step % 1000 == 0:
             writer.recordState(step, state, info)
             writer.recordStateData(step, state, info)
     print(state["flipCountsPerNode"])
