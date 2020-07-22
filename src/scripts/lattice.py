@@ -30,8 +30,8 @@ def create_square_lattice(n=40, boundary=None, **kwargs):
 
     if boundary is None:
         # construct the classic cut boundary
-        lb = int(n / 2)
-        ub = int(n / 2) + 1
+        lb = int(n / 2) - 1
+        ub = int(n / 2)
         boundary = [(u, v) for u, v in g.edges if
                     g.nodes[u]['Centroid'][1] in (lb, ub) and g.nodes[v]['Centroid'][1] in (lb, ub)]
 

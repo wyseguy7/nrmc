@@ -33,7 +33,7 @@ score_updaters = {'cut_length': [],
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
-                 score_funcs=('cut_length'), score_weights=(1.)):
+                 score_funcs=('cut_length',), score_weights=(1.,)):
 
         self.score_list = []
         self.score_updaters = []

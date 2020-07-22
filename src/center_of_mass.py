@@ -19,7 +19,7 @@ class CenterOfMassFlow(TemperedProposalMixin):
             for i in range(2): # will this always be R2?
                 center[i] = sum(nodedata['Centroid'][i]*
                                 (nodedata[weight_attribute] if weight_attribute is not None else 1)
-                                for node, nodedata in self.state.graph.nodes.items())
+                                for node, nodedata in self.state.graph.nodes.items())/len(self.state.graph.nodes())
 
         else:
             center = np.array(center, dtype='d') # guarantee a numpy array

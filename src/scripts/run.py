@@ -46,7 +46,6 @@ process_args = {'measure_beta': args.measure_beta,
                 }
 
 state_args = {
-    'n': args.n,
     'apd': args.apd,
     'involution': args.involution,
     'ideal_pop': args.ideal_pop
