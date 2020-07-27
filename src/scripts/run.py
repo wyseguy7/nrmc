@@ -48,7 +48,8 @@ process_args = {'measure_beta': args.measure_beta,
 state_args = {
     'apd': args.apd,
     'involution': args.involution,
-    'ideal_pop': args.ideal_pop
+    'ideal_pop': args.ideal_pop,
+    'num_districts': args.num_districts
 }
 
 
@@ -56,13 +57,13 @@ state_args = {
 if args.folder is None:
     # use a square lattice
     from src.scripts.lattice import create_square_lattice
-
-    if args.num_districts != 2:
-        raise ValueError("Only 2 district mode supported for lattice")
-
     state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal == 'yes':
+
+        if args.num_districts != 2:
+            raise ValueError("--diagonal only implemented for num_districts=2")
+
         # TODO next time just generate the boundary for this instead
         for node in state_new.graph.nodes():
             centroid = state_new.graph.nodes()[node]['Centroid']
@@ -104,16 +105,20 @@ try:
     for i in range(args.steps):
         process.step()
 
-        if i % 10000 == 0:
-            f = plt.figure(figsize=(15,8))
-            draw(process.state.graph, pos={node_id: (process.state.graph.nodes()[node_id]['Centroid'][0],
-                                                     process.state.graph.nodes()[node_id]['Centroid'][1]) for node_id in process.state.graph.nodes()},
-                 node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
+        if i % 1000000 == 0:
+            process.save() #
 
-
-            filepath = os.path.join(process.folder_path, args.process, '{}_{}_{}.png'.format(date, process.run_id, i))
-            f.savefig(filepath)
-            plt.close()
+        # no need for logging these anymore
+        # if i % 10000 == 0:
+        #     f = plt.figure(figsize=(15,8))
+        #     draw(process.state.graph, pos={node_id: (process.state.graph.nodes()[node_id]['Centroid'][0],
+        #                                              process.state.graph.nodes()[node_id]['Centroid'][1]) for node_id in process.state.graph.nodes()},
+        #          node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
+        #
+        #
+        #     filepath = os.path.join(process.folder_path, args.process, '{}_{}_{}.png'.format(date, process.run_id, i))
+        #     f.savefig(filepath)
+        #     plt.close()
 
 finally:
     # TODO put those heatmaps here so we don't have to do later
