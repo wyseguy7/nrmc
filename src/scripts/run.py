@@ -5,9 +5,9 @@ import pandas as pd
 import os
 from networkx import draw
 
-sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
+sys.path.append('/gtmp/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
-sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
+sys.path.append('/gtmp/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make this less garbage-y
@@ -104,16 +104,16 @@ try:
     for i in range(args.steps):
         process.step()
 
-        if i % 10000 == 0:
-            f = plt.figure(figsize=(15,8))
-            draw(process.state.graph, pos={node_id: (process.state.graph.nodes()[node_id]['Centroid'][0],
-                                                     process.state.graph.nodes()[node_id]['Centroid'][1]) for node_id in process.state.graph.nodes()},
-                 node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
+        # if i % 10000 == 0:
+            # f = plt.figure(figsize=(15,8))
+            # draw(process.state.graph, pos={node_id: (process.state.graph.nodes()[node_id]['Centroid'][0],
+            #                                          process.state.graph.nodes()[node_id]['Centroid'][1]) for node_id in process.state.graph.nodes()},
+            #      node_color=[process.state.node_to_color[i] for i in process.state.graph.nodes()], node_size=100)
 
 
-            filepath = os.path.join(process.folder_path, args.process, '{}_{}_{}.png'.format(date, process.run_id, i))
-            f.savefig(filepath)
-            plt.close()
+            # filepath = os.path.join(process.folder_path, args.process, '{}_{}_{}.png'.format(date, process.run_id, i))
+            # f.savefig(filepath)
+            # plt.close()
 
 finally:
     # TODO put those heatmaps here so we don't have to do later
