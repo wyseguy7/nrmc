@@ -13,10 +13,10 @@ processes = ["single_node_flip_tempered", "district_to_district",
 steps = 30000000
 runsPerProcess = 10
 
-processes = ["single_node_flip_tempered"]#, "district_to_district", 
-           # "center_of_mass", "single_node_3flip"]
-steps = 1000
-runsPerProcess = 1
+# processes = ["single_node_flip_tempered", "district_to_district", 
+#             "center_of_mass", "single_node_flip"]
+# steps = 1000
+# runsPerProcess = 1
 
 replace = "jobname"
 templateLines = open(template).readlines()
@@ -34,7 +34,7 @@ for process in processes:
             #                        "runInd_" + str(runInd))
             if not os.path.exists(outPath):
                 os.makedirs(outPath)
-            if "python3 src/scripts/run.py" in line:
+            if "python src/scripts/run.py" in line:
                 line = line.rstrip()
                 line += ' ' + ' '.join(["--steps", str(steps)]) + ' '
                 line += ' ' + ' '.join(["--process", process]) + ' '

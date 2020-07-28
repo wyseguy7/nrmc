@@ -31,7 +31,7 @@ echo "Got $NSLOTS processors for jobname"
 # Use full pathname to make sure we are using the right mpirun
 #
 
-python3 src/scripts/run.py
+~/miniconda3/envs/gerry/bin/python src/scripts/run.py
 
 #
 # Commands to do something with the data after the
