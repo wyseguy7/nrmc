@@ -4,6 +4,9 @@ import pickle
 import numpy as np
 import networkx as nx
 
+from src.state import greedy_graph_coloring
+
+
 # sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\')
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
@@ -12,7 +15,7 @@ sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this 
 from src.state import State
 
 
-def create_square_lattice(n=40, boundary=None, **kwargs):
+def create_square_lattice(n=40, boundary=None, num_districts=2, **kwargs):
     g = nx.Graph()
     for i in range(n):
         for j in range(n):
@@ -29,32 +32,38 @@ def create_square_lattice(n=40, boundary=None, **kwargs):
                 # add southern node
 
     if boundary is None:
-        # construct the classic cut boundary
-        lb = int(n / 2) - 1
-        ub = int(n / 2)
-        boundary = [(u, v) for u, v in g.edges if
-                    g.nodes[u]['Centroid'][1] in (lb, ub) and g.nodes[v]['Centroid'][1] in (lb, ub)]
 
-    removed_edges = {}
-    for u, v in boundary:  # list of conflicted edges
+        district_angles = np.linspace(-np.pi, np.pi, num=num_districts+1)
+        center = (n-1)/2 # the centroid - since the node centroids are from 0,0 to n-1, n-1
 
-        removed_edges[(u, v)] = g.edges[(u, v)]  # store relevant data
-        g.remove_edge(u, v)
+        # flipping the order ensures a horizontal cut, for backward compatibility
+        angles = {node_id: np.arctan2(g.nodes()[node_id]['Centroid'][1]-center,
+                                      g.nodes()[node_id]['Centroid'][0]-center) for node_id in g.nodes()}
 
-    # nodes_to_color = g.nodes()
-    color_to_node = dict()
-    node_to_color = dict()
+        # subtract 1 here to ensure zero-indexing of districts
+        node_to_color = {node_id: np.digitize(angle, district_angles)-1 for node_id, angle in angles.items()}
 
-    for district_id, comp in enumerate(nx.connected_components(g)):
+    else:
+        removed_edges = {}
+        for u, v in boundary:  # list of conflicted edges
 
-        color_to_node[district_id] = comp
+            removed_edges[(u, v)] = g.edges[(u, v)]  # store relevant data
+            g.remove_edge(u, v)
 
-        for node in comp:
-            node_to_color[node] = district_id
+        # nodes_to_color = g.nodes()
+        color_to_node = dict()
+        node_to_color = dict()
 
-    # add the edges back in
-    for (u, v), data in removed_edges.items():
-        g.add_edge(u, v, **data)
+        for district_id, comp in enumerate(nx.connected_components(g)):
+
+            color_to_node[district_id] = comp
+
+            for node in comp:
+                node_to_color[node] = district_id
+
+        # add the edges back in
+        for (u, v), data in removed_edges.items():
+            g.add_edge(u, v, **data)
 
 
     return State(g, node_to_color, **kwargs)
