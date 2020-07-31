@@ -439,10 +439,100 @@ def coreset_transitions(process, interval=0.5):
     return response
 
 
+def extract_center_of_mass(process):
+    from src.state import update_center_of_mass
+
+    process = copy.deepcopy(process) # just to be safe
+
+    com_centroids_log = []
+
+    for i in range(len(process.state.move_log)):
+        update_center_of_mass(process._initial_state)
+
+        com_centroids_log.append(copy.deepcopy(process._initial_state.com_centroid))
+
+        process._initial_state.handle_move(process.state.move_log[i])
+        # process._initial_state.iteration+=1
+
+    my_dict = {}
+    for district_id in com_centroids_log[0]:
+        output = np.ndarray(shape=(len(com_centroids_log), 2))
+
+        for i in range(len(com_centroids_log)):
+            output[i,:] = com_centroids_log[i][district_id]
+        my_dict[district_id] = output
+
+    return my_dict
 
 
 
+def center_of_mass_to_polar(com_centroids, center):
 
+    com_log_polar = {}
+    for district_id in com_centroids:
+        # convert to polar
+        theta = np.arctan2(com_centroids[district_id][:,1]-center[1], com_centroids[district_id][:,0]-center[0])
+        com_log_polar[district_id] = theta
+    com_polar = {}
+
+    for district_id in com_log_polar:
+
+        com = com_log_polar[district_id]
+        diff = np.ndarray(shape=(com.shape[0], 1))
+        diff[0] = com[0]
+
+        for i in range(1, com.shape[0]):
+            if com[i-1]*com[i] < 0 and np.abs(com[i]-com[i-1])>np.pi:
+                # differing signs
+                if com[i] > 0 and com[i-1] < 0:
+                    diff[i] = com[i]-com[i-1] - 2*np.pi
+                else:
+                    # com[i] < 0 and com[i-1] > 0
+                    diff[i] = com[i]-com[i-1] + 2*np.pi
+            else:
+                diff[i] = com[i]-com[i-1]
+
+
+
+        output = np.cumsum(diff)
+        com_polar[district_id] = output
+        # com_polar[district_id] = diff # TODO fix
+
+
+    return com_polar
+
+    #
+    # for i in range(1, len(com_log_polar)):
+    #     my_dict = {}
+    #     for district_id in com_log_polar[i]:
+    #         if com_log_polar[i-1][district_id]*com_log_polar[i][district_id] < 0:
+    #             pass
+    #         else:
+    #             my_dict[district_id] =
+    #
+    #
+    #
+    #
+    #
+    #
+    # for i in range(len(process.state.move_log)):
+    #     update_center_of_mass(process.state)
+    #     for district_id in process.state.color_to_node:
+    #         rot_matrix = get_rot_matrix(-com_state[district_id])
+    #         new_points = np.matmul(rot_matrix, process.state.com_centroid[district_id]-center) # rotated points
+    #         delta_theta = np.arctan2(new_points[0, 0], new_points[0,1])
+    #         com_log[district_id].append(com_log[district_id][-1]+delta_theta)
+    #
+    #         new_theta = np.arctan2(*(process.state.com_centroid[district_id]-center)) # calculate for next time
+    #         com_state[district_id] = new_theta
+    #
+    #     process.state.iteration+=1
+    #
+    # return com_log
+
+
+def get_rot_matrix(theta):
+    return np.matrix([[ np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
 
 
 
