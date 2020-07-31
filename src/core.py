@@ -15,7 +15,7 @@ exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
 try:
-    from biconnected import biconnected_dfs, dot_product, calculate_com_inner
+    from src.biconnected import biconnected_dfs, dot_product, calculate_com_inner
     cython_biconnected = True
 except ImportError:
     print("No Cython for you!")
