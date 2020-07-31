@@ -6,14 +6,17 @@ import pickle
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase')
 
-folder = sys.argv[2] # todo check this
+folder = sys.argv[1] # todo check this
 
 files = glob.glob(os.path.join(folder, '*/*.pkl')) + glob.glob(os.path.join(folder, '*/*/*/*.pkl'))
 feature_list = []
 
 for fi in files:
     with open(fi, mode='rb') as f:
-        process = pickle.load(f)
+        try:
+            process = pickle.load(f)
+        except:
+            continue
 
     features = {
         'class': process.__class__.__name__,
