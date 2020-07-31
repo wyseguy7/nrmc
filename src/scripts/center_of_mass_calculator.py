@@ -1,3 +1,4 @@
+import numpy as np
 import json
 import sys
 import pickle
@@ -19,12 +20,17 @@ for fi in list(df.filepath):
         with open(fi, mode='rb') as f:
             process = pickle.load(f)
 
+        for node, nodedata in process._initial_state.graph.nodes.items():
+            process._initial_state.graph.nodes()[node]['Centroid'] = np.array(nodedata['Centroid'], dtype='d')
+
+
+
         fp = os.path.split(fi)[-1]
         out_path = fp.replace('.pkl', '.json')
         com = extract_center_of_mass(process)
 
         with open(os.path.join(out_folder, fp), mode='w') as f:
-            json.dump(com, fp)
+            json.dump(com, f)
 
     except Exception as e:
         print(e)
