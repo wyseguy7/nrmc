@@ -14,16 +14,18 @@ out_folder = sys.argv[2]
 
 for fi in list(df.filepath):
 
-    with open(fi, mode='rb') as f:
-        try:
+    print(fi)
+    try:
+        with open(fi, mode='rb') as f:
             process = pickle.load(f)
-        except:
-            continue
 
-    fp = os.path.split(fi)[-1]
-    out_path = fp.replace('.pkl', '.json')
-    com = extract_center_of_mass(process)
+        fp = os.path.split(fi)[-1]
+        out_path = fp.replace('.pkl', '.json')
+        com = extract_center_of_mass(process)
 
-    with open(os.path.join(out_folder, fp), mode='w') as f:
-        json.dump(com)
+        with open(os.path.join(out_folder, fp), mode='w') as f:
+            json.dump(com, fp)
 
+    except Exception as e:
+        print(e)
+        continue
