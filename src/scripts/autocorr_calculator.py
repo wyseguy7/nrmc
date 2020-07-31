@@ -29,7 +29,7 @@ def write_autocorr(filepath, overwrite=False, intervals=200, max_distance=500000
     if os.path.exists(out_path) and not overwrite:
         return
 
-    with open(filename, mode='rb') as f:
+    with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
     records = compute_autocorr_new(process, intervals=intervals, max_distance=max_distance, points=points)
@@ -42,6 +42,6 @@ def write_autocorr(filepath, overwrite=False, intervals=200, max_distance=500000
 
 pool = mp.Pool(processes=args.threads) # how many should we use here?
 func = functools.partial(write_autocorr, overwrite=overwrite, intervals=args.intervals, max_distance=args.max_distance,
-                         num_points = args.num_points)
+                         points= args.points)
 df = pd.read_csv(args.filepaths)
 pool.imap_unordered(func, list(df.filepath))

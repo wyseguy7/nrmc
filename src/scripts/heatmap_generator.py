@@ -32,7 +32,7 @@ for filepath in list(df.filepath):
         continue
 
 
-    with open(filename, mode='rb') as f:
+    with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
 
