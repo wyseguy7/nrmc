@@ -9,28 +9,29 @@ sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
 from src.analytics import extract_center_of_mass
 
-
 df = pd.read_csv(sys.argv[1])
 out_folder = sys.argv[2]
+overwrite = False
 
-for fi in list(df.filepath):
 
-    print(fi)
+for filepath in list(df.filepath):
+
+    print(filepath)
     try:
-        with open(fi, mode='rb') as f:
+        folder, filename = os.path.split(filepath)
+        out_path = os.path.join(folder, 'center_of_mass.csv')
+        if os.path.exists(out_path) and not overwrite:
+            continue
+
+        with open(filepath, mode='rb') as f:
             process = pickle.load(f)
 
         for node, nodedata in process._initial_state.graph.nodes.items():
             process._initial_state.graph.nodes()[node]['Centroid'] = np.array(nodedata['Centroid'], dtype='d')
 
-
-
-        fp = os.path.split(fi)[-1]
-        out_path = fp.replace('.pkl', '.json')
         com = extract_center_of_mass(process)
-
-        with open(os.path.join(out_folder, fp), mode='w') as f:
-            json.dump(com, f)
+        df = pd.DataFrame(com)
+        df.to_csv(out_path, index=None)
 
     except Exception as e:
         print(e)
