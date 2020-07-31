@@ -28,7 +28,7 @@ def write_transitions(filepath, overwrite=False):
         return
 
 
-    with open(filename, mode='rb') as f:
+    with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
     transitions = [(i, -1)[int(i is None)] for i in coreset_transitions(process, interval=0.5)]
