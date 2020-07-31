@@ -1,9 +1,6 @@
 import sys
 import argparse
-from matplotlib import pyplot as plt
 import pandas as pd
-import os
-from networkx import draw
 
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
@@ -57,7 +54,7 @@ state_args = {
 
 if args.folder is None:
     # use a square lattice
-    from src.scripts.lattice import create_square_lattice
+    from src.lattice import create_square_lattice
     state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal == 'yes':
