@@ -9,7 +9,16 @@ sys.path.append('/gtmp/etw16/nonreversiblecodebase')
 folder = sys.argv[1] # todo check this
 
 files = glob.glob(os.path.join(folder, '*/*.pkl')) + glob.glob(os.path.join(folder, '*/*/*/*.pkl'))
-feature_list = []
+
+try:
+    df = pd.read_csv(sys.argv[2])
+    feature_list = df.to_dict('records')
+    processed_files = {i['filepath'] for i in feature_list}
+    files = [i for i in files if i not in processed_files]
+
+except:
+    feature_list = []
+
 
 for fi in files:
     with open(fi, mode='rb') as f:
@@ -38,4 +47,4 @@ for fi in files:
     feature_list.append(features)
 
 df = pd.DataFrame(feature_list)
-df.to_csv("features_out.csv", index=None)
+df.to_csv(sys.argv[2], index=None)
