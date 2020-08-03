@@ -25,6 +25,7 @@ def to_array(df, column, n=40):
 
 
 for filepath in list(df.filepath):
+    print(filepath)
 
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'field_data.csv')
@@ -36,6 +37,7 @@ for filepath in list(df.filepath):
         process = pickle.load(f)
 
     data_dict = dict()
+
     node_colorings = count_node_colorings(process)
 
     colors_1 = {k: v[1] for k, v in node_colorings.items()}
