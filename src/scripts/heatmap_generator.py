@@ -25,6 +25,7 @@ def to_array(df, column, n=40):
 
 
 for filepath in list(df.filepath):
+    print(filepath)
 
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'field_data.csv')
@@ -59,7 +60,6 @@ for filepath in list(df.filepath):
     #     process.state = new_state # reattach new state
 
     data_dict = dict()
-    data_dict['records'] = compute_autocorr_new(process, points=10000, max_distance=3000000, intervals=200)
 
     node_colorings = count_node_colorings(process)
 

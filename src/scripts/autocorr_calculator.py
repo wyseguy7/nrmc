@@ -23,26 +23,36 @@ args = parser.parse_args()
 overwrite = args.overwrite== 'yes'
 
 def write_autocorr(filepath, overwrite=False, intervals=200, max_distance=5000000, points=10000):
+    print(filepath)
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'autocorr_intervals_{intervals}_md_{md}_points_{points}.csv'.format(
         intervals=intervals, md=max_distance, points=points))
     if os.path.exists(out_path) and not overwrite:
+        print('skipping')
         return
 
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
-
+    print('loaded')
     records = compute_autocorr_new(process, intervals=intervals, max_distance=max_distance, points=points)
-
+    print('sampled')
     df = pd.DataFrame(records)
     averages = df.mean(axis=1).reset_index()
     averages.columns = ['interval', 'autocorr']
     averages.to_csv(out_path, index=None)
 
 
-pool = mp.Pool(processes=args.threads) # how many should we use here?
 func = functools.partial(write_autocorr, overwrite=overwrite, intervals=args.intervals, max_distance=args.max_distance,
                          points = args.points)
 df = pd.read_csv(args.filepaths)
-[func(i) for i in list(df.filepath)]
-# pool.imap_unordered(func, list(df.filepath))
+print(len(df))
+# [func(i) for i in list(df.filepath)]
+def safety(filepath):
+    try:
+        return func(filepath)
+    except Exception as e:
+        print(e)
+
+
+with mp.Pool(processes=args.threads) as pool:
+    pool.map(safety, list(df.filepath))

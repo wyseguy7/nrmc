@@ -36,5 +36,5 @@ def write_transitions(filepath, overwrite=False):
     with open(out_path, mode='w') as f:
         json.dump(trans, f)
 
-pool = mp.Pool(processes=12) # how many should we use here?
-pool.imap_unordered(write_transitions, list(df.filepath))
+with mp.Pool(processes=4) as pool: # how many should we use here?
+    pool.map(write_transitions, list(df.filepath))
