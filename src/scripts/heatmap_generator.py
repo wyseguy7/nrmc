@@ -37,6 +37,10 @@ for filepath in list(df.filepath):
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
+
+    if len(process.state.move_log) == 0:
+        continue
+
     n = int(np.sqrt(len(process.state.graph.nodes())))
     if n**2 != len(process.state.graph.nodes()):
         # graph size isn't a perfect square
