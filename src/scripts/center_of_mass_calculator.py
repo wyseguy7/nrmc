@@ -4,6 +4,7 @@ import sys
 import pickle
 import pandas as pd
 import os
+import multiprocessing as mp
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
@@ -13,14 +14,13 @@ df = pd.read_csv(sys.argv[1])
 overwrite = False
 
 
-for filepath in list(df.filepath):
-
+def func(filepath):
     print(filepath)
     try:
         folder, filename = os.path.split(filepath)
         out_path = os.path.join(folder, 'center_of_mass.csv')
         if os.path.exists(out_path) and not overwrite:
-            continue
+            return
 
         with open(filepath, mode='rb') as f:
             process = pickle.load(f)
@@ -43,4 +43,7 @@ for filepath in list(df.filepath):
 
     except Exception as e:
         print(e)
-        continue
+        return
+
+with mp.Pool(processes=4) as pool:
+    pool.map(func, list(df.filepath))
