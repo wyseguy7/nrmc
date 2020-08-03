@@ -7,10 +7,9 @@ import os
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
-from src.analytics import extract_center_of_mass
+from src.analytics import extract_center_of_mass, center_of_mass_to_polar
 
 df = pd.read_csv(sys.argv[1])
-out_folder = sys.argv[2]
 overwrite = False
 
 
@@ -30,6 +29,15 @@ for filepath in list(df.filepath):
             process._initial_state.graph.nodes()[node]['Centroid'] = np.array(nodedata['Centroid'], dtype='d')
 
         com = extract_center_of_mass(process)
+
+        weight_attribute = None
+        center = np.array([0, 0], dtype='d')
+        for i in range(2):  # will this always be R2?
+            center[i] = sum(nodedata['Centroid'][i] *
+                            (nodedata[weight_attribute] if weight_attribute is not None else 1)
+                            for node, nodedata in process.state.graph.nodes.items()) / len(process.state.graph.nodes())
+        com_polar = center_of_mass_to_polar(com, center)
+
         df = pd.DataFrame(com)
         df.to_csv(out_path, index=None)
 
