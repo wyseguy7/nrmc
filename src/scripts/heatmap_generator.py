@@ -27,11 +27,6 @@ def to_array(df, column, n=40):
 for filepath in list(df.filepath):
     print(filepath)
 
-    n = int(np.sqrt(len(process.state.graph.nodes())))
-    if n**2 != len(process.state.graph.nodes()):
-        # graph size isn't a perfect square
-        continue # this is not sensible to do, skip this one
-
 
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'field_data.csv')
@@ -41,6 +36,11 @@ for filepath in list(df.filepath):
 
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
+
+    n = int(np.sqrt(len(process.state.graph.nodes())))
+    if n**2 != len(process.state.graph.nodes()):
+        # graph size isn't a perfect square
+        continue # this is not sensible to do, skip this one
 
     data_dict = dict()
 
