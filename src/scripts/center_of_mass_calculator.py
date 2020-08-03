@@ -38,7 +38,7 @@ for filepath in list(df.filepath):
                             for node, nodedata in process.state.graph.nodes.items()) / len(process.state.graph.nodes())
         com_polar = center_of_mass_to_polar(com, center)
 
-        df = pd.DataFrame(com)
+        df = pd.DataFrame(com_polar)
         df.to_csv(out_path, index=None)
 
     except Exception as e:
