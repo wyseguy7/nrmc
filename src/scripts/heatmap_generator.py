@@ -27,6 +27,12 @@ def to_array(df, column, n=40):
 for filepath in list(df.filepath):
     print(filepath)
 
+    n = int(np.sqrt(len(process.state.graph.nodes())))
+    if n**2 != len(process.state.graph.nodes()):
+        # graph size isn't a perfect square
+        continue # this is not sensible to do, skip this one
+
+
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'field_data.csv')
     if os.path.exists(out_path):
@@ -69,7 +75,7 @@ for filepath in list(df.filepath):
 
          })
     for col in data_points:
-        data_dict[col] = to_array(df, col, n=int(np.sqrt(len(process.state.graph.nodes()))))
+        data_dict[col] = to_array(df, col, n=n)
 
 
     df.to_csv(os.path.join(folder, 'field_data.csv'), index=None)
