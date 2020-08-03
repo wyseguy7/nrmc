@@ -35,32 +35,7 @@ for filepath in list(df.filepath):
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
-
-
-    #     move_log = copy.deepcopy(process.state.move_log[:10000000])
-    #     process.state = copy.deepcopy(process._initial_state)
-    #     for move in move_log:
-    #         update_contested_edges(process.state)
-    #         process.state.handle_move(move)
-
-    #     new_state = copy.deepcopy(process._initial_state)
-    #     for move in process.state.move_log[:20000000]:
-    #         new_state.handle_move(move)
-
-    #     process._initial_state = copy.deepcopy(new_state) # attach initial_state
-
-    #     # new_state.move_log = process.state.move_log[20000000:]
-    #     new_state.contested_node_counter = collections.defaultdict(int) # reset contested_node_counter
-
-    #     for move in process.state.move_log[20000000:]:
-    #         new_state.handle_move(move)
-    #         update_contested_edges(new_state)
-
-    #     process.state = new_state # reattach new state
-
     data_dict = dict()
-    data_dict['records'] = compute_autocorr_new(process, points=10000, max_distance=3000000, intervals=200)
-
     node_colorings = count_node_colorings(process)
 
     colors_1 = {k: v[1] for k, v in node_colorings.items()}
