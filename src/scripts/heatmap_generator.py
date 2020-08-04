@@ -5,6 +5,7 @@ import os
 import pickle
 import argparse
 import multiprocessing as mp
+import copy
 
 import pandas as pd
 import numpy as np
@@ -19,6 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--filepaths', action='store', type=str, required=True, default='features_out.csv')
 parser.add_argument('--threads', action='store', type=int, required=False, default=12)
 parser.add_argument('--truncate', action='store', type=int, required=False, default=0)
+parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
 
 df = pd.read_csv(args.filepaths)
@@ -39,7 +41,7 @@ def make_heatmap(filepath):
     folder, filename = os.path.split(filepath)
     truncate_str = '' if args.truncate == 0 else '_truncate_{}'.format(args.truncate)
     out_path = os.path.join(folder, 'field_data{}.csv'.format(truncate_str))
-    if os.path.exists(out_path):
+    if os.path.exists(out_path) and not args.overwrite:
         return
 
 
@@ -47,7 +49,16 @@ def make_heatmap(filepath):
         process = pickle.load(f)
 
     if args.truncate != 0:
+        from src.state import update_contested_edges
         process.state.move_log = process.state.move_log[:args.truncate]
+        initial_state = copy.deepcopy(process._initial_state)
+        for move in process.state.move_log:
+
+            update_contested_edges(process._initial_state)
+            process._initial_state.handle_move(move)
+
+        process.state = copy.deepcopy(process._initial_state)
+        process._initial_state = initial_state
 
 
     if len(process.state.move_log) == 0:
