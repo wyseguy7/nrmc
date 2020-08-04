@@ -37,7 +37,8 @@ def make_heatmap(filepath):
     print(filepath)
 
     folder, filename = os.path.split(filepath)
-    out_path = os.path.join(folder, 'field_data.csv')
+    truncate_str = '' if args.truncate == 0 else '_truncate_{}'.format(args.truncate)
+    out_path = os.path.join(folder, 'field_data{}.csv'.format(truncate_str))
     if os.path.exists(out_path):
         return
 
@@ -93,7 +94,7 @@ def make_heatmap(filepath):
         data_dict[col] = to_array(df, col, n=n)
 
 
-    df.to_csv(os.path.join(folder, 'field_data.csv'), index=None)
+    df.to_csv(out_path, index=None)
 
 with mp.Pool(processes=args.threads) as pool:
     pool.map(make_heatmap, list(df.filepath))
