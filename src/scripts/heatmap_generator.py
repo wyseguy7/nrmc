@@ -3,6 +3,8 @@ sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
 import os
 import pickle
+import argparse
+import multiprocessing as mp
 
 import pandas as pd
 import numpy as np
@@ -11,7 +13,15 @@ from src.analytics import compute_autocorr_new
 from src.analytics import count_node_colorings
 
 data_points = ['district_1', 'times_contested', 'node_flips']
-df = pd.read_csv(sys.argv[1])
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--filepaths', action='store', type=str, required=True, default='features_out.csv')
+parser.add_argument('--threads', action='store', type=int, required=False, default=12)
+parser.add_argument('--truncate', action='store', type=int, required=False, default=0)
+args = parser.parse_args()
+
+df = pd.read_csv(args.filepaths)
 
 
 def to_array(df, column, n=40):
@@ -23,28 +33,29 @@ def to_array(df, column, n=40):
 
     return mat
 
-
-for filepath in list(df.filepath):
+def make_heatmap(filepath):
     print(filepath)
-
 
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'field_data.csv')
     if os.path.exists(out_path):
-        continue
+        return
 
 
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
 
+    if args.truncate != 0:
+        process.state.move_log = process.state.move_log[:args.truncate]
+
 
     if len(process.state.move_log) == 0:
-        continue
+        return
 
     n = int(np.sqrt(len(process.state.graph.nodes())))
     if n**2 != len(process.state.graph.nodes()):
         # graph size isn't a perfect square
-        continue # this is not sensible to do, skip this one
+        return # this is not sensible to do, skip this one
 
     data_dict = dict()
 
@@ -84,10 +95,5 @@ for filepath in list(df.filepath):
 
     df.to_csv(os.path.join(folder, 'field_data.csv'), index=None)
 
-    # data_dict['percentiles'] = np.quantile(list(colors_normalized.values()), np.linspace(0,1,num=100))
-    # diff,weights = compute_autocorr_fixed_points(process, points=1000, max_distance=100000)
-    # diff, weights = compute_autocorr_bootstrap(process, points=10000, max_distance=5000000)
-    # data_dict['diff'] = diff
-    # data_dict['weight'] = weights
-    # data_dict['df'] = df
-    # data_dict['corner_moves'] = [(i, -1)[int(i is None)] for i in find_corner_moves(process)]
+with mp.Pool(processes=args.threads) as pool:
+    pool.map(make_heatmap, list(df.filepath))
