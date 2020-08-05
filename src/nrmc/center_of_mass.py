@@ -2,8 +2,8 @@ import copy
 import numpy as np
 
 from .core import TemperedProposalMixin, compute_dot_product
-from .state import update_center_of_mass, update_perimeter_aggressive, update_population
-from src.state import calculate_com_one_step
+from .updaters import update_center_of_mass, update_perimeter_aggressive, update_population, \
+    calculate_com_one_step
 from .scores import compactness_score, population_balance_score
 
 

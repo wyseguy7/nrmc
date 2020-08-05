@@ -1,5 +1,4 @@
 import numpy as np
-import json
 import sys
 import pickle
 import pandas as pd
@@ -8,7 +7,7 @@ import multiprocessing as mp
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
-from src.analytics import extract_center_of_mass, center_of_mass_to_polar
+from src.nrmc.analytics import extract_center_of_mass, center_of_mass_to_polar
 
 df = pd.read_csv(sys.argv[1])
 overwrite = False

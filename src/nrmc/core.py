@@ -2,12 +2,16 @@ import os
 import pickle
 import uuid
 import copy
-import numpy as np
 import random
 import itertools
+
+import numpy as np
 import networkx as nx
 
-from .state import update_boundary_nodes, update_contested_edges, update_population, check_population, simply_connected, connected_breadth_first, update_center_of_mass, update_district_boundary, update_perimeter_aggressive
+from .state import connected_breadth_first
+from .constraints import simply_connected
+from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_aggressive, \
+    update_population, check_population, update_boundary_nodes
 from .scores import cut_length_score, population_balance_score, compactness_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
@@ -15,7 +19,7 @@ exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
 try:
-    from src.biconnected import biconnected_dfs, dot_product, calculate_com_inner
+    from .biconnected import biconnected_dfs, dot_product, calculate_com_inner
     cython_biconnected = True
 except ImportError:
     print("No Cython for you!")
@@ -60,7 +64,9 @@ class MetropolisProcess(object):
 
     @property
     def run_id(self):
-        return "{classname}_{my_id}".format(classname=self.__class__.__name__, my_id= self.uuid)
+        return "{classname}_{graph_type}_{my_id}".format(classname=self.__class__.__name__,
+                                                         my_id= self.uuid,
+                                                         graph_type=self.state.graph_type)
 
 
     def make_sandbox(self):

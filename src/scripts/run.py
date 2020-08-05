@@ -1,5 +1,7 @@
 import sys
 import argparse
+import os
+
 import pandas as pd
 
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
@@ -12,7 +14,7 @@ sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make th
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
 
-from src.state import State
+from src.nrmc.state import State
 
 folder_path = '/gtmp/etw16/runs/'
 
@@ -26,7 +28,7 @@ parser.add_argument('--steps', type=int, default=1000000)
 parser.add_argument('--process', type=str, default='single_node_flip')
 parser.add_argument('--output_path', type=str, default='/gtmp/etw16/runs/')
 parser.add_argument('--ideal_pop', type=float, default=None)
-parser.add_argument('--diagonal', type=str, default='no')
+parser.add_argument('--diagonal', action='store_true')
 parser.add_argument('--n', type=int, default=40)
 parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
@@ -54,10 +56,10 @@ state_args = {
 
 if args.folder is None:
     # use a square lattice
-    from src.lattice import create_square_lattice
+    from src import create_square_lattice
     state_new = create_square_lattice(n=args.n, **state_args)
 
-    if args.diagonal == 'yes':
+    if args.diagonal:
 
         if args.num_districts != 2:
             raise ValueError("--diagonal only implemented for num_districts=2")
@@ -72,27 +74,27 @@ if args.folder is None:
 
 else:
     # create state from the relevant folder
-
-    state_new = State.from_folder(args.folder, **state_args)
+    graph_type = args.folder.split(os.path.sep)[-1]
+    state_new = State.from_folder(args.folder, graph_type=graph_type, **state_args)
 
 # state_new.ideal_pop = args.ideal_pop
 # state_new.involution = args.involution
 
 
 if args.process == 'single_node_flip':
-    from src.single_node_flip import SingleNodeFlip
+    from src import SingleNodeFlip
     process = SingleNodeFlip(state=state_new, **process_args)
 
 elif args.process == 'single_node_flip_tempered':
-    from src.single_node_flip import SingleNodeFlipTempered
+    from src import SingleNodeFlipTempered
     process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
-    from src.district_to_district import DistrictToDistrictTempered
+    from src import DistrictToDistrictTempered
     process = DistrictToDistrictTempered(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
-    from src.center_of_mass import CenterOfMassFlow
+    from src import CenterOfMassFlow
     process = CenterOfMassFlow(state=state_new, **process_args)
 
 else:
