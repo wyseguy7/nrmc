@@ -66,6 +66,6 @@ def create_square_lattice(n=40, boundary=None, num_districts=2, **kwargs):
             g.add_edge(u, v, **data)
 
 
-    return State(g, node_to_color, **kwargs)
+    return State(g, node_to_color, graph_type='lattice', **kwargs)
 
 

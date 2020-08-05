@@ -60,7 +60,9 @@ class MetropolisProcess(object):
 
     @property
     def run_id(self):
-        return "{classname}_{my_id}".format(classname=self.__class__.__name__, my_id= self.uuid)
+        return "{classname}_{graph_type}_{my_id}".format(classname=self.__class__.__name__,
+                                                         my_id= self.uuid,
+                                                         graph_type=self.state.graph_type)
 
 
     def make_sandbox(self):

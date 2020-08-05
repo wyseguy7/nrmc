@@ -22,7 +22,7 @@ except ImportError:
 class State(object):
 
     def __init__(self, graph, coloring, log_contested_edges = True,
-                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1):
+                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice'):
 
 
         if coerce_int:
@@ -33,6 +33,7 @@ class State(object):
 
         self.coerce_int = coerce_int
         self.graph = graph
+        self.graph_type = graph_type
 
         self.node_to_color = coloring
         d = collections.defaultdict(set)
