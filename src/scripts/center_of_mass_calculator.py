@@ -45,5 +45,5 @@ def func(filepath):
         print(e)
         return
 
-with mp.Pool(processes=4) as pool:
+with mp.Pool(processes=8) as pool:
     pool.map(func, list(df.filepath))
