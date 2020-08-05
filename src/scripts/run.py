@@ -14,7 +14,7 @@ sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make th
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
 
-from src.state import State
+from src import State
 
 folder_path = '/gtmp/etw16/runs/'
 
@@ -56,7 +56,7 @@ state_args = {
 
 if args.folder is None:
     # use a square lattice
-    from src.lattice import create_square_lattice
+    from src import create_square_lattice
     state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal:
@@ -82,19 +82,19 @@ else:
 
 
 if args.process == 'single_node_flip':
-    from src.single_node_flip import SingleNodeFlip
+    from src import SingleNodeFlip
     process = SingleNodeFlip(state=state_new, **process_args)
 
 elif args.process == 'single_node_flip_tempered':
-    from src.single_node_flip import SingleNodeFlipTempered
+    from src import SingleNodeFlipTempered
     process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
-    from src.district_to_district import DistrictToDistrictTempered
+    from src import DistrictToDistrictTempered
     process = DistrictToDistrictTempered(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
-    from src.center_of_mass import CenterOfMassFlow
+    from src import CenterOfMassFlow
     process = CenterOfMassFlow(state=state_new, **process_args)
 
 else:

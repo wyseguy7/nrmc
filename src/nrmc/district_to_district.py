@@ -3,7 +3,8 @@ import numpy as np
 import copy
 
 from .core import MetropolisProcess, TemperedProposalMixin
-from .state import update_contested_edges, update_district_boundary
+from src.nrmc.updaters import update_contested_edges, update_district_boundary
+
 
 class DistrictToDistrictFlow(MetropolisProcess):
     # if not scored_proposals:

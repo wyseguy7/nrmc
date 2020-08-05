@@ -7,7 +7,10 @@ import random
 import itertools
 import networkx as nx
 
-from .state import update_boundary_nodes, update_contested_edges, update_population, check_population, simply_connected, connected_breadth_first, update_center_of_mass, update_district_boundary, update_perimeter_aggressive
+from .state import connected_breadth_first
+from src.nrmc.constraints import simply_connected
+from src.nrmc.updaters import update_center_of_mass, update_contested_edges, update_perimeter_aggressive, \
+    update_population, check_population, update_boundary_nodes
 from .scores import cut_length_score, population_balance_score, compactness_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
@@ -15,7 +18,7 @@ exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
 try:
-    from src.biconnected import biconnected_dfs, dot_product, calculate_com_inner
+    from src.nrmc.biconnected import biconnected_dfs, dot_product, calculate_com_inner
     cython_biconnected = True
 except ImportError:
     print("No Cython for you!")

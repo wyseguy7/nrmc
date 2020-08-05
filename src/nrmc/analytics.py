@@ -440,7 +440,7 @@ def coreset_transitions(process, interval=0.5):
 
 
 def extract_center_of_mass(process):
-    from src.state import update_center_of_mass
+    from src.nrmc.updaters import update_center_of_mass
 
     process = copy.deepcopy(process) # just to be safe
 
