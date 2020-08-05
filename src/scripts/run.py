@@ -4,15 +4,17 @@ import os
 
 import pandas as pd
 
-sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
-sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
-sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
+# sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
+# sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
+# sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 sys.path.append('/gtmp/etw16/nonreversiblecodebase')
 
-sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
-sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make this less garbage-y
-sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
-sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
+# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
+# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make this less garbage-y
+# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
+# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
+
+
 
 from src.nrmc.state import State
 
@@ -56,7 +58,7 @@ state_args = {
 
 if args.folder is None:
     # use a square lattice
-    from src import create_square_lattice
+    from src.nrmc.lattice import create_square_lattice
     state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal:
@@ -82,19 +84,19 @@ else:
 
 
 if args.process == 'single_node_flip':
-    from src import SingleNodeFlip
+    from src.nrmc.single_node_flip import SingleNodeFlip
     process = SingleNodeFlip(state=state_new, **process_args)
 
 elif args.process == 'single_node_flip_tempered':
-    from src import SingleNodeFlipTempered
+    from src.nrmc.single_node_flip import SingleNodeFlipTempered
     process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
-    from src import DistrictToDistrictTempered
+    from src.nrmc.district_to_district import DistrictToDistrictTempered
     process = DistrictToDistrictTempered(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
-    from src import CenterOfMassFlow
+    from src.nrmc.center_of_mass import CenterOfMassFlow
     process = CenterOfMassFlow(state=state_new, **process_args)
 
 else:
