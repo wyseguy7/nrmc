@@ -1,18 +1,14 @@
 import sys
-import pickle
 
 import numpy as np
 import networkx as nx
-
-from src.state import greedy_graph_coloring
-
 
 # sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\')
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
 sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
 
-from src.state import State
+from .state import State
 
 
 def create_square_lattice(n=40, boundary=None, num_districts=2, **kwargs):

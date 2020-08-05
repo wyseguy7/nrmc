@@ -1,22 +1,22 @@
+import setuptools
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
-from setuptools import find_packages
 
-ext_modules = [Extension("biconnected", ['biconnected.pyx'], language="c++", extra_compile_args=['-std=c++11'])]
+ext_modules = [Extension("nrmc/biconnected", ['biconnected.pyx'], language="c++", extra_compile_args=['-std=c++11'])]
 
 
 setup(
-    name="",
+    name="nrmc",
     version="0.0.1",
     author= "Evan Wyse",
     author_email="evan.wyse@duke.edu",
-    description="Non-reversible MCMC chain sampling over districting graphs",
-    packages=find_packages(),
+    description="Non-reversible Monte Carlo Markov Chain sampling over districting graphs",
+    packages=setuptools.find_packages(),
     ext_modules=ext_modules, cmdclass={"build_ext":build_ext},
-    python_requires='>=3.5',
+    python_requires='>=3.6',
 
     )
 
-# TODO we may need to
+# TODO come up with a better package name

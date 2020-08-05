@@ -10,8 +10,7 @@ import copy
 import pandas as pd
 import numpy as np
 
-from src.analytics import compute_autocorr_new
-from src.analytics import count_node_colorings
+from src import count_node_colorings
 
 data_points = ['district_1', 'times_contested', 'node_flips']
 
@@ -49,7 +48,7 @@ def make_heatmap(filepath):
         process = pickle.load(f)
 
     if args.truncate != 0:
-        from src.state import update_contested_edges
+        from src import update_contested_edges
         process.state.move_log = process.state.move_log[:args.truncate]
         initial_state = copy.deepcopy(process._initial_state)
         for move in process.state.move_log:
