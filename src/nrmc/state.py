@@ -1,12 +1,12 @@
 import collections
-import networkx as nx
-import pandas as pd
 import os
-import numpy as np
 import itertools
 import random
 
-# from src.core import cython_biconnected
+import networkx as nx
+import numpy as np
+import pandas as pd
+
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 try:
@@ -14,8 +14,6 @@ try:
     cython_biconnected = True
 except ImportError:
     cython_biconnected = False
-
-
 
 
 class State(object):

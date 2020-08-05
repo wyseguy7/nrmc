@@ -2,9 +2,10 @@ import os
 import pickle
 import uuid
 import copy
-import numpy as np
 import random
 import itertools
+
+import numpy as np
 import networkx as nx
 
 from .state import connected_breadth_first

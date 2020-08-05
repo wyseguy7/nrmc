@@ -3,9 +3,8 @@ import collections
 import networkx as nx
 import numpy as np
 
-from src.nrmc.scores import population_balance_score
-from src.nrmc.state import CENTROID_DIM_LENGTH, log_contested_edges, \
-    cython_biconnected
+from .scores import population_balance_score
+from .state import CENTROID_DIM_LENGTH, log_contested_edges, cython_biconnected
 
 
 def contested_edges_naive(state):
