@@ -1,0 +1,44 @@
+{% set version = "0.0.1" %}
+{% set packagename = "nrmc"}
+{% set sha = '' %}
+
+package:
+  name: {{ packagename }}
+  version: {{ version }}
+
+source:
+  fn: {{ packagename }}-{{version}}.tar.gz
+  url: https://pypi.io/packages/source/u/{{ packagename }}/{{ packagename }}-{{ version }}.tar.gz
+  sha256: {{ sha }}}
+
+build:
+  number: 1001
+  noarch: python
+  script: "{{ PYTHON}} -m pip install . -vv"
+
+requirements:
+  host:
+    - python
+    - pip
+    - cython
+
+  run:
+    - python
+    - networkx
+    - pandas
+    - numpy
+
+test:
+  imports:
+    - {{ packagename  }}
+
+
+about:
+  home: https://github.com # TODO fill this in
+  license: MIT # TODO change this?
+  license_family: MIT # TODO change
+  summary: Non-reversible Monte Carlo Markov Chain sampling over districting graphs
+
+extra:
+  recipe-maintainers:
+    - wyseguy7
