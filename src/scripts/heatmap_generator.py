@@ -10,7 +10,7 @@ import copy
 import pandas as pd
 import numpy as np
 
-from src import count_node_colorings
+from src.nrmc.analytics import count_node_colorings
 
 data_points = ['district_1', 'times_contested', 'node_flips']
 

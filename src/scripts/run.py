@@ -14,7 +14,7 @@ sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make th
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
 sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
 
-from src import State
+from src.nrmc.state import State
 
 folder_path = '/gtmp/etw16/runs/'
 

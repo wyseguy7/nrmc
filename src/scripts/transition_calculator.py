@@ -7,7 +7,7 @@ import multiprocessing as mp
 import pandas as pd
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
-from src import coreset_transitions
+from src.nrmc.analytics import coreset_transitions
 
 df = pd.read_csv(sys.argv[1])
 

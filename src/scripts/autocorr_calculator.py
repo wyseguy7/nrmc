@@ -8,7 +8,7 @@ import argparse
 import pandas as pd
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
-from src import compute_autocorr_new
+from src.nrmc.analytics import compute_autocorr_new
 
 data_points = ['district_1', 'times_contested', 'node_flips']
 
