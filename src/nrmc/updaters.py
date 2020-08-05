@@ -4,7 +4,15 @@ import networkx as nx
 import numpy as np
 
 from .scores import population_balance_score
-from .state import CENTROID_DIM_LENGTH, log_contested_edges, cython_biconnected
+from .state import CENTROID_DIM_LENGTH, log_contested_edges
+
+try:
+    from .biconnected import calculate_com_inner
+    cython_biconnected = True
+except ImportError:
+    print("No Cython for you!")
+    cython_biconnected = False
+
 
 
 def contested_edges_naive(state):
