@@ -1,13 +1,8 @@
-import networkx as nx
-from collections import defaultdict
 import numpy as np
-import copy
-import random
 
 
-from .core import MetropolisProcess, TemperedProposalMixin, compute_dot_product, exp
-from src.nrmc.constraints import simply_connected
-from src.nrmc.updaters import update_contested_edges, check_population
+from .core import MetropolisProcess, TemperedProposalMixin, compute_dot_product
+from .updaters import update_contested_edges
 
 
 class PrecintFlow(MetropolisProcess):
