@@ -10,7 +10,7 @@ import pandas as pd
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 try:
-    from biconnected import calculate_com_inner
+    from .biconnected import calculate_com_inner
     cython_biconnected = True
 except ImportError:
     cython_biconnected = False

@@ -4,7 +4,7 @@ from distutils.extension import Extension
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
 
-ext_modules = [Extension("nrmc/biconnected", ['biconnected.pyx'], language="c++", extra_compile_args=['-std=c++11'])]
+ext_modules = [Extension("nrmc.biconnected", ['src/nrmc/biconnected.pyx'], language="c++", extra_compile_args=['-std=c++11'])]
 
 
 setup(
