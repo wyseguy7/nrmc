@@ -35,6 +35,7 @@ parser.add_argument('--n', type=int, default=40)
 parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
 parser.add_argument('--apd', type=float, default=0.1)
+parser.add_argument('--profile', action='store_true')
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
@@ -103,12 +104,20 @@ else:
     raise ValueError("Please select a valid process type")
 
 try:
-    date = str(pd.datetime.today().date())
-    for i in range(args.steps):
-        process.step()
 
-        if i % 1000000 == 0:
-            process.save() #
+    def f():
+        date = str(pd.datetime.today().date())
+        for i in range(args.steps):
+            process.step()
+
+            if i % 1000000 == 0:
+                process.save() #
+
+    if args.profile:
+        import cProfile
+        cProfile.run('f()')
+    else:
+        f()
 
         # no need for logging these anymore
         # if i % 10000 == 0:
