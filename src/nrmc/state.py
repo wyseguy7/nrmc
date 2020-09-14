@@ -345,3 +345,48 @@ def connected_breadth_first(state, node_id, old_color):
         to_search.extend(nonpriority_neighbors)
         to_search.extend(priority_neighbors) # ensure that priority neighbors are at the top of the queue
 
+
+class RingPointer(object):
+
+    def __init__(self, node_id, downstream):
+        self.node_id = node_id
+        self.downstream = downstream # next ringpointer in chain
+
+
+    def __hash__(self):
+        return self.node_id # this is a compact hash
+
+
+def ring_connectivity_naive(state):
+    # create the ring connectivity objects for a thing
+    # requires that edges be counted in a clockwise fashion - how to do this best?
+
+
+
+
+
+
+def update_ring_connectivity(state):
+
+    if not hasattr('ring_lookup', state):
+        state.ring_lookup = ring_connectivity_naive(state)
+
+
+    else:
+        for move in state.move_log[state.ring_lookup_updated:]:
+            if move is not None:
+                node_id, old_color, new_color = move
+
+
+
+                # todo stuff here
+
+
+
+    state.ring_lookup_updated = state.iteration
+
+def test_ring_connectivity(node_id, old_color, new_color, state):
+    # test if number of neighbors is
+
+    return len(state.ring_lookup[old_color][node_id].out_connections) == 1 # if there are multiple, we have a problem and can't remove this
+

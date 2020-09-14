@@ -1,5 +1,3 @@
-Area	Duplin_C_Onslow_P__AREAS.txt	ID:0	col:1
-BlackPopulation	Duplin_C_Onslow_P__BLACK_AP.txt	ID:0	col:1
-BorderLengths	Duplin_C_Onslow_P__BORDERLENGTHS.txt	ID:0,1	col:2
-Counties	Duplin_C_Onslow_P__GEOIDS.txt	ID:0	col:2
-Population	Duplin_C_Onslow_P__POPULATION.txt	ID:0	col:1
+version https://git-lfs.github.com/spec/v1
+oid sha256:d57e8a41df56abe4927dd1faf2d50b6ff6b73d4bef18aa754e2d5145d86cbc21
+size 273

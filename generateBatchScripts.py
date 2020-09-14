@@ -10,7 +10,7 @@ template = replace + ".sh"
 
 processes = ["single_node_flip_tempered", "district_to_district", 
            "center_of_mass", "single_node_flip"]
-steps = 30000000
+steps = 10000000
 runsPerProcess = 10
 
 # processes = ["single_node_flip_tempered", "district_to_district", 
