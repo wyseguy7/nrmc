@@ -360,6 +360,7 @@ class RingPointer(object):
 def ring_connectivity_naive(state):
     # create the ring connectivity objects for a thing
     # requires that edges be counted in a clockwise fashion - how to do this best?
+    pass
 
 
 
