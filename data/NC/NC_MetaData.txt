@@ -1,5 +1,3 @@
-Population	NC_Population.txt	ID:0	col:1
-Area	NC_Areas.txt	ID:0	col:1
-BlackPopulation	NC_BlackPop.txt	ID:0	col:1
-Counties	NC_Counties.txt	ID:0	col:1
-BorderLengths	NC_Edges_Lengths.txt	ID:0,1	col:2
+version https://git-lfs.github.com/spec/v1
+oid sha256:85ccc7be9eaafc74085d43f0cc71699decc3b709945073f181c0cbab5e88ba7b
+size 195

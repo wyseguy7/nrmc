@@ -1,3 +1,3 @@
-Centroid	../data/BigonDual_2_5/nodeData.txt	ID:0	col:1,2
-Population	../data/BigonDual_2_5/nodeData.txt	ID:0	col:3
-BorderLengths	../data/BigonDual_2_5/edgeData.txt	ID:0,1	col:2
+version https://git-lfs.github.com/spec/v1
+oid sha256:9e55c68d3ab24b22337d3fc3b156d72ba0ada0c4e0591f82bfa8d37b5994c702
+size 176
