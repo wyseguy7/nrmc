@@ -82,6 +82,9 @@ class MetropolisProcess(object):
         with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
 
+        with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
+            json.dump(self, f) # boy do I hope this works
+
 
     def toJson(self):
         # write out significant features as needed
