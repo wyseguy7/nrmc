@@ -4,11 +4,12 @@ import uuid
 import copy
 import random
 import itertools
+import json
 
 import numpy as np
 import networkx as nx
 
-from .state import connected_breadth_first
+from .state import connected_breadth_first, State
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_aggressive, \
     update_population, check_population, update_boundary_nodes
@@ -37,10 +38,11 @@ score_updaters = {'cut_length': [],
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
-                 score_funcs=('cut_length',), score_weights=(1.,)):
+                 score_funcs=('cut_length',), score_weights=(1.,), unique_id=None):
 
         self.score_list = []
         self.score_updaters = []
+        self.score_funcs = score_funcs # we need to store this to make json-serializable
 
         for score, score_weight in zip(score_funcs, score_weights):
             self.score_list.append((score_weight, score_lookup[score]))
@@ -59,13 +61,17 @@ class MetropolisProcess(object):
         if log_com:
             self.com_log = []
         self.folder_path = folder_path
-        self.uuid = uuid.uuid4().hex[:6]
-        self.make_sandbox()
+
+        if unique_id is None:
+            self.unique_id = uuid.uuid4().hex[:6]
+            self.make_sandbox()
+        else:
+            self.unique_id = unique_id # assumes sandbox already created
 
     @property
     def run_id(self):
         return "{classname}_{graph_type}_{my_id}".format(classname=self.__class__.__name__,
-                                                         my_id= self.uuid,
+                                                         my_id= self.unique_id,
                                                          graph_type=self.state.graph_type)
 
 
@@ -75,6 +81,29 @@ class MetropolisProcess(object):
     def save(self):
         with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
+
+
+    def toJson(self):
+        # write out significant features as needed
+
+        ignore = {"score_updaters", "score_list"}
+        custom_dict = {}
+        other_dict = {k: v for k,v in self.__dict__ if k not in custom_dict and k not in ignore}
+        other_dict.update(custom_dict)
+        return  json.dumps(other_dict) # this should work?
+
+    @classmethod
+    def from_json(cls, filepath):
+        # TODO extract from json
+
+        with open(filepath) as f:
+            js = json.load(f)
+
+        state = State.from_json(js.pop('state'))
+        initial_state = js.pop('_initial_state') # we need to override this
+        process = cls(state, **js)
+        process._initial_state = initial_state # are we going to have an issue with proposal_state?
+        return process
 
 
 

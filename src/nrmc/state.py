@@ -2,11 +2,12 @@ import collections
 import os
 import itertools
 import random
+import json
 
 import networkx as nx
 import numpy as np
 import pandas as pd
-
+from networkx.readwrite.json_graph import node_link_graph, node_link_data
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 try:
@@ -18,8 +19,10 @@ except ImportError:
 
 class State(object):
 
+
+
     def __init__(self, graph, coloring, log_contested_edges = True,
-                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice'):
+                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice', **kwargs):
 
 
         if coerce_int:
@@ -57,6 +60,31 @@ class State(object):
 
         self.connected_true_counter = [] # TODO remove after finished debugging
         self.connected_false_counter = []
+
+        for name, kwarg in kwargs.items():
+            setattr(self, name, kwarg) # set attribute as required
+
+    def toJson(self):
+
+        # these just won't get serialized as they are difficult to initialize or store properly, mostly the updated attrs
+        ignore = {"district_boundary", "district_boundary_updated",  "com_centroid", "com_updated", "contested_edges",
+                  "contested_nodes", "contested_edges_updated", "boundary_node_counter", "boundary_node_updated",
+                  "articulation_points", "articulation_points_updated", "adj_mapping", "adj_mapping_full",
+        }
+
+        custom_dict = {'graph': node_link_data(self.graph),
+                       'color_to_node': {k: list(v) for k, v in self.color_to_node.items()}, # can't have sets
+                       }
+        other_dict = {key: value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
+        other_dict.update(custom_dict)
+        return json.dumps(other_dict)
+
+    @classmethod
+    def from_json(cls, js):
+        # js is the nested, already parsed dictionary object
+        graph = node_link_graph(js['graph'])
+        return cls(graph, js['node_to_color'], **{k:v for k,v in js.items() if k != 'graph'})
+
 
     @classmethod
     def from_folder(cls, folder_path, num_districts=3, apd=0.1, **kwargs):
