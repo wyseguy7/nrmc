@@ -9,7 +9,7 @@ import json
 import numpy as np
 import networkx as nx
 
-from .state import connected_breadth_first, State
+from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_aggressive, \
     update_population, check_population, update_boundary_nodes
@@ -47,8 +47,6 @@ class ProcessEncoder(json.JSONEncoder):
             return o.tolist()
         else:
             return super().default(o)
-
-
 
 
 class MetropolisProcess(object):
@@ -109,7 +107,7 @@ class MetropolisProcess(object):
 
         ignore = {"score_updaters", "score_list"}
         custom_dict = {}
-        other_dict = {k: v for k,v in self.__dict__.items() if k not in custom_dict and k not in ignore}
+        other_dict = {np_to_native(k): v for k,v in self.__dict__.items() if k not in custom_dict and k not in ignore}
         other_dict.update(custom_dict)
         return other_dict
         # return  json.dumps(other_dict, default=lambda o: o.__dict__) # this should work?
