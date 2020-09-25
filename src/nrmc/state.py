@@ -16,6 +16,17 @@ try:
 except ImportError:
     cython_biconnected = False
 
+def np_to_native(o):
+    if isinstance(o, np.integer):
+        return int(o)
+    elif isinstance(o, np.floating):
+        return float(o)
+    elif isinstance(o, np.ndarray):
+        return o.tolist()
+    else:
+        return o
+
+
 
 class State(object):
 
@@ -76,7 +87,7 @@ class State(object):
         custom_dict = {'graph': node_link_data(self.graph),
                        'color_to_node': {k: list(v) for k, v in self.color_to_node.items()}, # can't have sets
                        }
-        other_dict = {key: value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
+        other_dict = {np_to_native(key): value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
         other_dict.update(custom_dict)
         return other_dict
         # return json.dumps(other_dict)
