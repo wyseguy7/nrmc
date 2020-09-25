@@ -16,7 +16,7 @@ sys.path.append('/gtmp/etw16/nonreversiblecodebase')
 
 
 
-from src.nrmc.state import State
+from nrmc.state import State
 
 folder_path = '/gtmp/etw16/runs/'
 
@@ -59,7 +59,7 @@ state_args = {
 
 if args.folder is None:
     # use a square lattice
-    from src.nrmc.lattice import create_square_lattice
+    from nrmc.lattice import create_square_lattice
     state_new = create_square_lattice(n=args.n, **state_args)
 
     if args.diagonal:
@@ -85,19 +85,19 @@ else:
 
 
 if args.process == 'single_node_flip':
-    from src.nrmc.single_node_flip import SingleNodeFlip
+    from nrmc.single_node_flip import SingleNodeFlip
     process = SingleNodeFlip(state=state_new, **process_args)
 
 elif args.process == 'single_node_flip_tempered':
-    from src.nrmc.single_node_flip import SingleNodeFlipTempered
+    from nrmc.single_node_flip import SingleNodeFlipTempered
     process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
-    from src.nrmc.district_to_district import DistrictToDistrictTempered
+    from nrmc.district_to_district import DistrictToDistrictTempered
     process = DistrictToDistrictTempered(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
-    from src.nrmc.center_of_mass import CenterOfMassFlow
+    from nrmc.center_of_mass import CenterOfMassFlow
     process = CenterOfMassFlow(state=state_new, **process_args)
 
 else:

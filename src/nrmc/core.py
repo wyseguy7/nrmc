@@ -35,6 +35,16 @@ score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_aggressive],
                   'population_balance': [update_population]}
 
+class ProcessEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, (MetropolisProcess, State)):
+            return o._json_dict
+        else:
+            return super().default(self, o)
+
+
+
+
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
@@ -82,18 +92,21 @@ class MetropolisProcess(object):
         with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
 
-        with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
-            json.dump(self, f) # boy do I hope this works
+        with open(os.path.join(self.folder_path, self.run_id, '{}_process.json'.format(self.run_id)), mode='wb') as f:
+            # json.dump(self.toJson(), f) # boy do I hope this works
+            f.write(json.dumps(self, cls=ProcessEncoder))
 
 
-    def toJson(self):
+    @property
+    def _json_dict(self):
         # write out significant features as needed
 
         ignore = {"score_updaters", "score_list"}
         custom_dict = {}
         other_dict = {k: v for k,v in self.__dict__ if k not in custom_dict and k not in ignore}
         other_dict.update(custom_dict)
-        return  json.dumps(other_dict) # this should work?
+        return other_dict
+        # return  json.dumps(other_dict, default=lambda o: o.__dict__) # this should work?
 
     @classmethod
     def from_json(cls, filepath):

@@ -64,7 +64,8 @@ class State(object):
         for name, kwarg in kwargs.items():
             setattr(self, name, kwarg) # set attribute as required
 
-    def toJson(self):
+    @property
+    def _json_dict(self):
 
         # these just won't get serialized as they are difficult to initialize or store properly, mostly the updated attrs
         ignore = {"district_boundary", "district_boundary_updated",  "com_centroid", "com_updated", "contested_edges",
@@ -77,7 +78,8 @@ class State(object):
                        }
         other_dict = {key: value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
         other_dict.update(custom_dict)
-        return json.dumps(other_dict)
+        return other_dict
+        # return json.dumps(other_dict)
 
     @classmethod
     def from_json(cls, js):
