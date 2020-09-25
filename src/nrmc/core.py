@@ -39,8 +39,14 @@ class ProcessEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, (MetropolisProcess, State)):
             return o._json_dict
+        elif isinstance(o, np.integer):
+            return int(o)
+        elif isinstance(o, np.floating):
+            return float(o)
+        elif isinstance(o, np.ndarray):
+            return o.tolist()
         else:
-            return super().default(self, o)
+            return super().default(o)
 
 
 
@@ -103,7 +109,7 @@ class MetropolisProcess(object):
 
         ignore = {"score_updaters", "score_list"}
         custom_dict = {}
-        other_dict = {k: v for k,v in self.__dict__ if k not in custom_dict and k not in ignore}
+        other_dict = {k: v for k,v in self.__dict__.items() if k not in custom_dict and k not in ignore}
         other_dict.update(custom_dict)
         return other_dict
         # return  json.dumps(other_dict, default=lambda o: o.__dict__) # this should work?
