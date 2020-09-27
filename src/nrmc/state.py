@@ -158,8 +158,10 @@ class State(object):
 
         print(len(graph.nodes))
 
-        minimum_population = len(graph.nodes())/num_districts - len(graph.nodes())*apd/2
-        maximum_population = len(graph.nodes())/num_districts + len(graph.nodes())*apd/2
+        population_total = sum(graph.nodes()[node]['population'] for node in graph.nodes)
+
+        minimum_population = population_total/num_districts - population_total*apd/2
+        maximum_population = population_total/num_districts + population_total*apd/2
 
         counter = 0
         loop_max = 100
