@@ -53,7 +53,7 @@ class ProcessEncoder(json.JSONEncoder):
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
-                 score_funcs=('cut_length',), score_weights=(1.,), unique_id=None):
+                 score_funcs=('cut_length',), score_weights=(1.,), unique_id=None, **kwargs):
 
         self.score_list = []
         self.score_updaters = []
@@ -83,6 +83,9 @@ class MetropolisProcess(object):
         else:
             self.unique_id = unique_id # assumes sandbox already created
 
+        # for k, v in kwargs.items():
+        #     setattr(self, k, v) # accept and attach
+
     @property
     def run_id(self):
         return "{classname}_{graph_type}_{my_id}".format(classname=self.__class__.__name__,
@@ -97,9 +100,9 @@ class MetropolisProcess(object):
         with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
 
-        with open(os.path.join(self.folder_path, self.run_id, '{}_process.json'.format(self.run_id)), mode='wb') as f:
+        with open(os.path.join(self.folder_path, self.run_id, '{}_process.json'.format(self.run_id)), mode='w') as f:
             # json.dump(self.toJson(), f) # boy do I hope this works
-            f.write(json.dumps(self, cls=ProcessEncoder))
+            f.write(json.dumps(self, cls=ProcessEncoder, indent=4))
 
 
     @property
@@ -108,9 +111,9 @@ class MetropolisProcess(object):
 
         ignore = {"score_updaters", "score_list"}
         custom_dict = {}
-        other_dict = {np_to_native(k): v for k,v in self.__dict__.items() if k not in custom_dict and k not in ignore}
+        other_dict = {k: v for k,v in self.__dict__.items() if k not in custom_dict and k not in ignore}
         other_dict.update(custom_dict)
-        return other_dict
+        return np_to_native(other_dict)
         # return  json.dumps(other_dict, default=lambda o: o.__dict__) # this should work?
 
     @classmethod
