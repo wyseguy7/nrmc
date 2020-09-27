@@ -71,12 +71,8 @@ class State(object):
         num_districts = len(self.color_to_node)
 
         population_total = sum(graph.nodes()[node]['population'] for node in graph.nodes)
-
         minimum_population = population_total/num_districts - population_total*apd/2
         maximum_population = population_total/num_districts + population_total*apd/2
-
-        # minimum_population = len(self.graph.nodes())/num_districts - len(self.graph.nodes())*apd/2
-        # maximum_population = len(self.graph.nodes())/num_districts + len(self.graph.nodes())*apd/2
 
         self.minimum_population = minimum_population
         self.maximum_population = maximum_population

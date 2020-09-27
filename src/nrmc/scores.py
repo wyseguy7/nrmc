@@ -49,3 +49,8 @@ def population_balance_score(state, proposal):
     return np.sqrt(state.population_deviation**2 + score_delta)
 
 
+def population_balance_sq_score(state, proposal):
+    node_id, old_color, new_color = proposal
+    flipped_pop = state.graph.nodes()[node_id]['population']
+    return 2 * flipped_pop * (state.population_counter[new_color] - state.population_counter[old_color] + flipped_pop)
+
