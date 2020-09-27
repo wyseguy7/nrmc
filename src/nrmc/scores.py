@@ -8,12 +8,10 @@ def compactness_score(state, proposal):
     area_prop = state.graph.nodes()[prop_node]['area'] if 'area' in state.graph.nodes()[prop_node] else 1
 
     perim_smaller = state.district_to_perimeter[old_color]
-    area_smaller = sum([(state.graph.nodes()[node_id]['area'] if 'area' in state.graph.nodes()[node_id] else 1)
-                     for node_id in state.color_to_node[old_color]]) # if we don't have an Area, just weight evenly
+    area_smaller = sum([state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[old_color]])
 
     perim_larger = state.district_to_perimeter[new_color]
-    area_larger = sum([(state.graph.nodes()[node_id]['area'] if 'area' in state.graph.nodes()[node_id] else 1)
-                     for node_id in state.color_to_node[new_color]]) # if we don't have an Area, just weight evenly
+    area_larger = sum([state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[new_color]])
 
     node_neighbors = state.graph.neighbors(prop_node)
 
@@ -21,6 +19,10 @@ def compactness_score(state, proposal):
                                            if other_node not in state.color_to_node[new_color]])
     perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)]['border_length'] for other_node in node_neighbors
                                            if other_node not in state.color_to_node[old_color]])
+
+    if state.include_external_border:
+        perim_larger_new += state.graph.nodes()[prop_node]['external_border']
+        perim_smaller_new -= state.graph.nodes()[prop_node]['external_border']
 
     score_old = perim_smaller**2/area_smaller + perim_larger**2/area_larger
     score_new = perim_smaller_new**2/(area_smaller-area_prop) + perim_larger_new**2/(area_larger+area_prop)
