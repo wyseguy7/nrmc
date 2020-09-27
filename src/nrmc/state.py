@@ -159,8 +159,11 @@ class State(object):
         minimum_population = len(graph.nodes())/num_districts - len(graph.nodes())*apd/2
         maximum_population = len(graph.nodes())/num_districts + len(graph.nodes())*apd/2
 
+        counter = 0
+        loop_max = 100
         # loop until we achieve a valid coloring
         while True:
+            counter += 1
             valid_coloring = True
             coloring = greedy_graph_coloring(graph, num_districts=num_districts)
             # check minimum population is valid
@@ -169,6 +172,9 @@ class State(object):
                     sum(graph.nodes()[node_id]['population'] for node_id in nodes) > maximum_population):
                     valid_coloring = False
                     break
+
+            if counter > loop_max:
+                raise ValueError("Exceeded maximum number of allowable attempts")
 
             if valid_coloring:
                 break
