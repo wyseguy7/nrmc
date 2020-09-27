@@ -149,6 +149,10 @@ def update_perimeter_aggressive(state):
                 state.district_to_perimeter[new_color] += state.graph.edges[(node_id, neighbor)]['border_length']
                 state.district_to_perimeter[old_color] -= state.graph.edges[(node_id, neighbor)]['border_length']
 
+        if state.include_external_border:
+            state.district_to_perimeter[old_color] -= state.graph.nodes()[node_id]['external_border']
+            state.district_to_perimeter[new_color] += state.graph.nodes()[node_id]['external_border']
+
     state.perimeter_updated = state.iteration
 
 

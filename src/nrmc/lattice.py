@@ -17,14 +17,15 @@ def create_square_lattice(n=40, boundary=None, num_districts=2, **kwargs):
         for j in range(n):
             node_id = i * n + j
             on_boundary = (i in (0, n-1) or j in (0, n-1))
-            g.add_node(node_id, Centroid=np.array([i, j], dtype='d'), boundary=on_boundary, population=1)
+            g.add_node(node_id, Centroid=np.array([i, j], dtype='d'), boundary=on_boundary, population=1, area=1,
+                       external_border = int(i in (0, n-1)) + int(j in (0, n-1)))
 
             if i != 0:
                 # add western node
-                g.add_edge(node_id, (i - 1) * n + j)
+                g.add_edge(node_id, (i - 1) * n + j, border_length=1)
 
             if j != 0:
-                g.add_edge(node_id, i * n + j - 1)
+                g.add_edge(node_id, i * n + j - 1, border_length=1)
                 # add southern node
 
     if boundary is None:

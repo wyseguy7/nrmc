@@ -48,7 +48,7 @@ class State(object):
 
 
 
-    def __init__(self, graph, coloring, log_contested_edges = True,
+    def __init__(self, graph, coloring, log_contested_edges = True, include_external_border = True,
                  coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice', **kwargs):
 
 
@@ -81,6 +81,7 @@ class State(object):
         self.move_log = [] # move log is state_log plus 'None' each time we make an involution
         self.ideal_pop = ideal_pop
         self.involution = involution
+        self.include_external_border = include_external_border
 
         self.log_contested_edges = log_contested_edges # rip these out into a mixin?
         self.contested_edge_counter = collections.defaultdict(int)
@@ -142,7 +143,8 @@ class State(object):
             if node_id != -1:
                 graph.add_edge(node_id, other_node, border_length=border_length)
             else:
-                graph.add_node(other_node, boundary=True) # need to make sure we get boundary correct here
+                graph.add_node(other_node, boundary=True, external_border=border_length)
+                # need to make sure we get boundary correct here
 
 
         # guarantee we have a boundary entry for each
@@ -157,6 +159,7 @@ class State(object):
 
             if 'boundary' not in graph.nodes()[node_id]:
                 graph.nodes()[node_id]['boundary'] = False
+                graph.nodes()[node_id]['external_border'] = 0 # TODO we can eliminate one of these to simplify
 
         print(len(graph.nodes))
 
