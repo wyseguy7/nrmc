@@ -3,6 +3,8 @@ import os
 import itertools
 import random
 import json
+from collections.abc import Iterable
+from types import GeneratorType
 
 import networkx as nx
 import numpy as np
@@ -23,9 +25,23 @@ def np_to_native(o):
         return float(o)
     elif isinstance(o, np.ndarray):
         return o.tolist()
+    elif isinstance(o, dict):
+        return {np_to_native_keys(k):np_to_native(v) for k, v in o.items()}
+    elif isinstance(o, str):
+        return o # this is fine, but don't recurse through iterables
+    elif isinstance(o, (Iterable, GeneratorType)):
+        return tuple([np_to_native(v) for v in o]) #
     else:
         return o
 
+
+def np_to_native_keys(o):
+    if isinstance(o, (int, np.integer)):
+        return int(o)
+    elif isinstance(o, (float, np.floating)):
+        return float(o)
+    else:
+        return str(o) # seems like best option
 
 
 class State(object):
@@ -87,9 +103,9 @@ class State(object):
         custom_dict = {'graph': node_link_data(self.graph),
                        'color_to_node': {k: list(v) for k, v in self.color_to_node.items()}, # can't have sets
                        }
-        other_dict = {np_to_native(key): value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
+        other_dict = {key: value for key, value in self.__dict__.items() if key not in custom_dict and key not in ignore}
         other_dict.update(custom_dict)
-        return other_dict
+        return np_to_native(other_dict)
         # return json.dumps(other_dict)
 
     @classmethod
