@@ -51,10 +51,11 @@ cdef class PerimeterComputer:
 
 
     cpdef float compactness_score(self, double area_larger, double area_smaller, double area_node, int node_id,
-        double perim_smaller, double perim_larger, int old_color, int new_color, bool use_external_border):
+        double perim_smaller, double perim_larger, int old_color, int new_color, bint use_external_border):
 
         cdef float border_length
         cdef int neighbor
+        cdef ext_border # not always used - is this bad?
 
         cdef float area_larger_new = area_larger + area_node
         cdef float area_smaller_new = area_smaller - area_node
@@ -78,18 +79,19 @@ cdef class PerimeterComputer:
                 perim_smaller_new -= border_length
 
         if use_external_border:
-            perim_larger_new += border_length
-            perim_smaller_new -= border_length
+            ext_border = self.external_border_lookup[node_id]
+            perim_larger_new += ext_border
+            perim_smaller_new -= ext_border
 
         cdef float score_old = perim_smaller ** 2 / area_smaller + perim_larger ** 2 / area_larger
-        cdef float score_new = perim_smaller_new ** 2 / (area_smaller - area_prop) + perim_larger_new ** 2 / (area_larger + area_prop)
+        cdef float score_new = perim_smaller_new ** 2 / (area_smaller - area_node) + perim_larger_new ** 2 / (area_larger + area_node)
 
         return score_new - score_old
 
 
 
 cpdef float population_balance_sq(double flipped_pop, double new_pop, double old_pop):
-    return 2 * flipped_pop * (new_pop - old_pop + flipped+pop)
+    return 2 * flipped_pop * (new_pop - old_pop + flipped_pop)
 
 
 
