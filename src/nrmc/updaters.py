@@ -162,6 +162,7 @@ def update_perimeter_and_area(state):
 
         state.district_to_area[old_color] -= state.graph.nodes()[node_id]['area']
         state.district_to_area[new_color] += state.graph.nodes()[node_id]['area']
+        state.perimeter_computer.update(node_id, old_color, new_color)
 
     state.perimeter_updated = state.iteration
 

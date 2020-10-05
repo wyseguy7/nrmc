@@ -1,7 +1,28 @@
 import numpy as np
+try:
+    from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer
+    cython_biconnected = True
+except ImportError:
+    cython_biconnected = False
 
 
 def compactness_score(state, proposal):
+
+    if cython_biconnected:
+        node_id, old_color, new_color = proposal
+
+        return state.perimeter_computer.compactness_score(
+            state.district_to_area[old_color],
+            state.district_to_area[new_color],
+            state.graph.nodes()[node_id]['area'],
+            node_id,
+            state.district_to_perimeter[old_color],
+            state.district_to_perimeter[new_color],
+            old_color, new_color, use_external_border = state.include_external_border)
+    else:
+        return _compactness_score(state, proposal)
+
+def _compactness_score(state, proposal):
     prop_node, old_color, new_color = proposal # unpack
     score, score_prop = 0, 0
 
