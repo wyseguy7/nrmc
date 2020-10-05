@@ -20,7 +20,7 @@ exp = lambda x: np.exp(min(x, 700)) # avoid overflow
 
 
 try:
-    from .biconnected import biconnected_dfs, dot_product, calculate_com_inner
+    from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer
     cython_biconnected = True
 except ImportError:
     print("No Cython for you!")
@@ -64,7 +64,6 @@ class MetropolisProcess(object):
             for updater in score_updaters[score]: # these are functions that need to run before computing a particular score
                 self.score_updaters.append(updater)
 
-        self._initial_state = copy.deepcopy(state)  # save for later
         self.state = state
         self.score_log = [] # for debugging
         self.beta = beta
@@ -83,8 +82,28 @@ class MetropolisProcess(object):
         else:
             self.unique_id = unique_id # assumes sandbox already created
 
+        if cython_biconnected and 'compactness' in score_funcs:
+
+            border_length_lookup = {MetropolisProcess.pack_int(*edge):self.state.graph.edges()[edge]['border_length'] for edge in self.state.graph.edges()}
+            border_length_lookup.update({MetropolisProcess.pack_int(edge[1], edge[0]):self.state.graph.edges()[edge]['border_length'] for edge in self.state.graph.edges()})
+            # we need both directions just to be sure
+
+            external_border_lookup = {node_id: self.state.graph.nodes()[node_id]['external_border_length'] for node_id in self.state.graph.nodes()}
+            adj_mapping_full = {node_id: list(self.state.graph.neighbors(node_id)) for node_id in self.state.graph.nodes()}
+
+            self.state.perimeter_computer = PerimeterComputer(adj_mapping_full,  self.state.node_to_color,
+                                                        border_length_lookup, external_border_lookup)
+            # self.state.cython_biconnected = True
+
+        self._initial_state = copy.deepcopy(state)  # save for later
+
         # for k, v in kwargs.items():
         #     setattr(self, k, v) # accept and attach
+
+    # needed for perimeter computer
+    @staticmethod
+    def pack_int(a, b):
+        return (a << 32) | b
 
     @property
     def run_id(self):

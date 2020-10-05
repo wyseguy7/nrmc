@@ -24,7 +24,7 @@ cdef int fast_min(int a, int b):
 
 cdef long pack_int(int a, int b):
     cdef long response = a #
-    return (response << 32) & b # hope this works correctly
+    return (response << 32) | b # hope this works correctly
 
 
 
