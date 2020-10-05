@@ -23,7 +23,7 @@ cdef int fast_min(int a, int b):
         return b
 
 cdef long pack_int(int a, int b):
-    long response = a #
+    cdef long response = a #
     return (response << 32) & b # hope this works correctly
 
 

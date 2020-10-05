@@ -12,8 +12,7 @@ else:
     ext_modules = [Extension("nrmc.biconnected",
                          ['src/nrmc/biconnected.pyx'],
                          language="c++",
-                         extra_compile_args=['-march=native', '-O3', '-Wall', '-Wextra', '-pedantic',
-                                            '-std=c++11', '-DFHT_HEADER_ONLY',  '-DMS_WIN64']
+                         extra_compile_args=['-std=c++11', '-DFHT_HEADER_ONLY',  '-DMS_WIN64']
                          )]
 
 # extra_compile_args=['-std=c++11'])]
