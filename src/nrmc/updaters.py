@@ -118,14 +118,20 @@ def perimeter_naive(state):
 
     return dd
 
+def area_naive(state):
 
-def update_perimeter_aggressive(state):
+    return {district_id: sum(state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[district_id])
+            for district_id in state.color_to_node.keys()}
+
+
+def update_perimeter_and_area(state):
 
     # this version assumes that this will get run EVERY time a node is flipped
     update_contested_edges(state) # guarantee contested edges updated before proceeding
 
     if not hasattr(state, 'district_to_perimeter'):
         state.district_to_perimeter = perimeter_naive(state)
+        state.district_to_area = area_naive(state)
         state.perimeter_updated = state.iteration  # set to current iteration
 
     for move in state.move_log[state.perimeter_updated:]:
@@ -149,9 +155,13 @@ def update_perimeter_aggressive(state):
                 state.district_to_perimeter[new_color] += state.graph.edges[(node_id, neighbor)]['border_length']
                 state.district_to_perimeter[old_color] -= state.graph.edges[(node_id, neighbor)]['border_length']
 
+
         if state.include_external_border:
             state.district_to_perimeter[old_color] -= state.graph.nodes()[node_id]['external_border']
             state.district_to_perimeter[new_color] += state.graph.nodes()[node_id]['external_border']
+
+        state.district_to_area[old_color] -= state.graph.nodes()[node_id]['area']
+        state.district_to_area[new_color] += state.graph.nodes()[node_id]['area']
 
     state.perimeter_updated = state.iteration
 

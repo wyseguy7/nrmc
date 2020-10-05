@@ -8,17 +8,33 @@ def compactness_score(state, proposal):
     area_prop = state.graph.nodes()[prop_node]['area'] if 'area' in state.graph.nodes()[prop_node] else 1
 
     perim_smaller = state.district_to_perimeter[old_color]
-    area_smaller = sum([state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[old_color]])
+    area_smaller = state.district_to_area[old_color]
 
     perim_larger = state.district_to_perimeter[new_color]
-    area_larger = sum([state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[new_color]])
+    area_larger = state.district_to_area[new_color]
 
-    node_neighbors = state.graph.neighbors(prop_node)
+    # node_neighbors = state.graph.neighbors(prop_node)
 
-    perim_larger_new = perim_larger + sum([state.graph.edges()[(prop_node, other_node)]['border_length'] for other_node in node_neighbors
-                                           if other_node not in state.color_to_node[new_color]])
-    perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)]['border_length'] for other_node in node_neighbors
-                                           if other_node not in state.color_to_node[old_color]])
+    perim_larger_new, perim_smaller_new = perim_larger, perim_smaller
+
+    for neighbor in state.graph.neighbors(prop_node):
+        if neighbor in state.color_to_node[new_color]:
+            # we need to reduce the perimeter of new_color by their shared amount
+            perim_larger_new -= state.graph.edges[(prop_node, neighbor)]['border_length']
+
+        elif neighbor in state.color_to_node[old_color]:
+            # we need to increase the perimeter of old_color by their shared amount
+            perim_smaller_new += state.graph.edges[(prop_node, neighbor)]['border_length']
+
+        else:
+            # we need to increase the perimeter of new_color AND decrease of old color. no change to the perimeter of the 3rd district
+            perim_larger_new += state.graph.edges[(prop_node, neighbor)]['border_length']
+            perim_smaller_new -= state.graph.edges[(prop_node, neighbor)]['border_length']
+
+    # perim_larger_new = perim_larger + sum([state.graph.edges()[(prop_node, other_node)]['border_length'] for other_node in node_neighbors
+    #                                        if other_node not in state.color_to_node[new_color]])
+    # perim_smaller_new = perim_smaller - sum([state.graph.edges()[(prop_node, other_node)]['border_length'] for other_node in node_neighbors
+    #                                        if other_node not in state.color_to_node[old_color]])
 
     if state.include_external_border:
         perim_larger_new += state.graph.nodes()[prop_node]['external_border']

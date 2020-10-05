@@ -11,7 +11,7 @@ import networkx as nx
 
 from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
-from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_aggressive, \
+from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
     update_population, check_population, update_boundary_nodes
 from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score
 
@@ -32,7 +32,7 @@ score_lookup = {'cut_length': cut_length_score,
                 'population_balance': population_balance_sq_score} # TODO rip out population_balance calculation from updater
 
 score_updaters = {'cut_length': [],
-                  'compactness': [update_perimeter_aggressive],
+                  'compactness': [update_perimeter_and_area],
                   'population_balance': [update_population]}
 
 class ProcessEncoder(json.JSONEncoder):
@@ -184,7 +184,8 @@ class MetropolisProcess(object):
     def get_proposals(self, state):
         # produces a mapping {proposal: score} for each edge in get_directed_edges
 
-        scored_proposals = {}
+        proposals = set()
+        # scored_proposals = {}
 
         for updater in self.score_updaters:
             updater(state)
@@ -194,15 +195,20 @@ class MetropolisProcess(object):
             old_color = state.node_to_color[node_id]
             new_color = state.node_to_color[neighbor]
 
-            if (node_id, old_color, new_color) in scored_proposals:
-                continue # already scored this proposal
+            proposals.add((node_id, old_color, new_color))
+
+            # if (node_id, old_color, new_color) in proposals:
+            #     continue # already scored this proposal
 
             # if not self.proposal_checks(state, (node_id, old_color, new_color)):
             #     continue # not a valid proposal
 
-            scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
+            # scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
 
-        return {proposal: scored_proposals[proposal] for proposal in self.proposal_filter(state, scored_proposals)}
+
+        # only score proposal if it passes the filter
+        return {(node_id, old_color, new_color): self.score_proposal(node_id, old_color, new_color, state)
+                for node_id, old_color, new_color in self.proposal_filter(state, proposals)}
 
         # return scored_proposals
 

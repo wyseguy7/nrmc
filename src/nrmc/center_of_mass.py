@@ -2,7 +2,7 @@ import copy
 import numpy as np
 
 from .core import TemperedProposalMixin, compute_dot_product
-from .updaters import update_center_of_mass, update_perimeter_aggressive, update_population, \
+from .updaters import update_center_of_mass, update_perimeter_and_area, update_population, \
     calculate_com_one_step
 from .scores import compactness_score, population_balance_score
 
@@ -101,7 +101,7 @@ class CenterOfMassIsoparametricPopulation(CenterOfMassFlow):
 
     def get_proposals(self, state):
         # need to make sure these are updated
-        update_perimeter_aggressive(state)
+        update_perimeter_and_area(state)
         update_population(state)
         return super().get_proposals(state)
 

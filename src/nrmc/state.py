@@ -161,7 +161,7 @@ class State(object):
                 graph.nodes()[node_id]['boundary'] = False
                 graph.nodes()[node_id]['external_border'] = 0 # TODO we can eliminate one of these to simplify
 
-        print(len(graph.nodes))
+        # print(len(graph.nodes))
 
         population_total = sum(graph.nodes()[node]['population'] for node in graph.nodes)
 
@@ -175,7 +175,7 @@ class State(object):
             counter += 1
             valid_coloring = True
             coloring = greedy_graph_coloring(graph, num_districts=num_districts)
-            print(coloring)
+            # print(coloring)
             # check minimum population is valid
             for color, nodes in coloring.items():
                 if sum(graph.nodes()[node_id]['population'] for node_id in nodes) < minimum_population or (
