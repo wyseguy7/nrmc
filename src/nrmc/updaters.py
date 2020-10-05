@@ -120,7 +120,7 @@ def perimeter_naive(state):
 
 def area_naive(state):
 
-    return {district_id: sum(state.graph.nodes()[node_id] for node_id in state.color_to_node[district_id])
+    return {district_id: sum(state.graph.nodes()[node_id]['area'] for node_id in state.color_to_node[district_id])
             for district_id in state.color_to_node.keys()}
 
 
@@ -161,7 +161,7 @@ def update_perimeter_and_area(state):
             state.district_to_perimeter[new_color] += state.graph.nodes()[node_id]['external_border']
 
         state.district_to_area[old_color] -= state.graph.nodes()[node_id]['area']
-        state.district_to_area[new_color] -= state.graph.nodes()[node_id]['area']
+        state.district_to_area[new_color] += state.graph.nodes()[node_id]['area']
 
     state.perimeter_updated = state.iteration
 

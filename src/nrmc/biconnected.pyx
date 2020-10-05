@@ -1,6 +1,7 @@
 # distutils: language = c++
 
 from libcpp.unordered_map cimport unordered_map
+from libcpp.map cimport map
 from libcpp.vector cimport vector
 from libcpp.unordered_set cimport unordered_set
 from libcpp.pair cimport pair
@@ -20,6 +21,76 @@ cdef int fast_min(int a, int b):
         return a
     else:
         return b
+
+
+
+cdef class PerimeterComputer:
+
+    cdef unordered_map[int, vector[int]] adj_mapping_full
+    cdef unordered_map[int, unordered_set[int]] node_to_color # will Cython tolerate this?
+
+    # cdef unordered_map[(int, int), float] border_length
+    cdef map[(int, int), float] border_length_lookup # static
+    cdef unordered_map[int, float] external_border_lookup # static
+
+
+    def __init__(self, unordered_map[int, vector[int]] adj_mapping_full,
+                                                       unordered_map[int, unordered_set[int]] node_to_color,
+                                                       map[(int, int), float] border_length_lookup,
+                                                                              unordered_map[int, float] external_border_lookup):
+        self.adj_mapping_full = adj_mapping_full
+        self.node_to_color = node_to_color
+        self.border_length_lookup = border_length_lookup
+        self.external_border_lookup = external_border_lookup
+
+
+    def update(self, int node_id, int old_color, int new_color):
+        # need to keep node_to_color up to date
+        self.node_to_color[old_color].erase(node_id)
+        self.node_to_color[new_color].insert(node_id)
+
+
+    cpdef float compactness_score(self, double area_larger, double area_smaller, double area_node, int node_id,
+        double perim_smaller, double perim_larger, int old_color, int new_color, bool use_external_border):
+
+        cdef float border_length
+        cdef int neighbor
+
+        cdef float area_larger_new = area_larger + area_node
+        cdef float area_smaller_new = area_smaller - area_node
+
+        cdef float perim_smaller_new = perim_smaller # initialize at other values
+        cdef float perim_larger_new = perim_larger
+
+        for i in range(self.adj_mapping_full[node_id].size()):
+
+            neighbor = self.adj_mapping_full[node_id][i]
+
+            node_pair = (node_id, neighbor) # check that this isn't hitting Python - cast explicitly to pair if it is
+            border_length = self.border_length_lookup[node_pair]
+
+            if self.node_to_color[new_color].count(neighbor) > 0:
+                perim_larger_new -= border_length
+            elif self.node_to_color[old_color].count(neighbor) > 0:
+                perim_smaller_new += border_length
+            else:
+                perim_larger_new += border_length
+                perim_smaller_new -= border_length
+
+        if use_external_border:
+            perim_larger_new += border_length
+            perim_smaller_new -= border_length
+
+        cdef float score_old = perim_smaller ** 2 / area_smaller + perim_larger ** 2 / area_larger
+        cdef float score_new = perim_smaller_new ** 2 / (area_smaller - area_prop) + perim_larger_new ** 2 / (area_larger + area_prop)
+
+        return score_new - score_old
+
+
+
+cpdef float population_balance_sq(double flipped_pop, double new_pop, double old_pop):
+    return 2 * flipped_pop * (new_pop - old_pop + flipped+pop)
+
 
 
 cpdef float dot_product(double[:] a, double[:] b, double[:] center):

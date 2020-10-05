@@ -185,7 +185,8 @@ class MetropolisProcess(object):
     def get_proposals(self, state):
         # produces a mapping {proposal: score} for each edge in get_directed_edges
 
-        scored_proposals = {}
+        proposals = set()
+        # scored_proposals = {}
 
         for updater in self.score_updaters:
             updater(state)
@@ -195,15 +196,20 @@ class MetropolisProcess(object):
             old_color = state.node_to_color[node_id]
             new_color = state.node_to_color[neighbor]
 
-            if (node_id, old_color, new_color) in scored_proposals:
-                continue # already scored this proposal
+            proposals.add((node_id, old_color, new_color))
+
+            # if (node_id, old_color, new_color) in proposals:
+            #     continue # already scored this proposal
 
             # if not self.proposal_checks(state, (node_id, old_color, new_color)):
             #     continue # not a valid proposal
 
-            scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
+            # scored_proposals[(node_id, old_color, new_color)] = self.score_proposal(node_id, old_color, new_color, state)
 
-        return {proposal: scored_proposals[proposal] for proposal in self.proposal_filter(state, scored_proposals)}
+
+        # only score proposal if it passes the filter
+        return {(node_id, old_color, new_color): self.score_proposal(node_id, old_color, new_color, state)
+                for node_id, old_color, new_color in self.proposal_filter(state, proposals)}
 
         # return scored_proposals
 
