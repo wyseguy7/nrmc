@@ -90,7 +90,7 @@ class MetropolisProcess(object):
             external_border_lookup = {node_id: self.state.graph.nodes()[node_id]['external_border'] for node_id in self.state.graph.nodes()}
             adj_mapping_full = {node_id: list(self.state.graph.neighbors(node_id)) for node_id in self.state.graph.nodes()}
 
-            self.state.perimeter_computer = PerimeterComputer(adj_mapping_full,  self.state.node_to_color,
+            self.state.perimeter_computer = PerimeterComputer(adj_mapping_full,  self.state.color_to_node,
                                                         border_length_lookup, external_border_lookup)
             # self.state.cython_biconnected = True
 

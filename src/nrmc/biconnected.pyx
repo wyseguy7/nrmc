@@ -31,7 +31,7 @@ cdef long pack_int(int a, int b):
 cdef class PerimeterComputer:
 
     cdef unordered_map[int, vector[int]] adj_mapping_full
-    cdef unordered_map[int, unordered_set[int]] node_to_color # will Cython tolerate this?
+    cdef unordered_map[int, unordered_set[int]] color_to_node # will Cython tolerate this?
 
     # cdef unordered_map[(int, int), float] border_length
     cdef unordered_map[long, float] border_length_lookup # static
@@ -39,19 +39,19 @@ cdef class PerimeterComputer:
 
 
     def __init__(self, unordered_map[int, vector[int]] adj_mapping_full,
-                                                       unordered_map[int, unordered_set[int]] node_to_color,
+                                                       unordered_map[int, unordered_set[int]] color_to_node,
                                                       unordered_map[long, float] border_length_lookup,
                                                           unordered_map[int, float] external_border_lookup):
         self.adj_mapping_full = adj_mapping_full
-        self.node_to_color = node_to_color
+        self.color_to_node = color_to_node
         self.border_length_lookup = border_length_lookup
         self.external_border_lookup = external_border_lookup
 
 
     def update(self, int node_id, int old_color, int new_color):
         # need to keep node_to_color up to date
-        self.node_to_color[old_color].erase(node_id)
-        self.node_to_color[new_color].insert(node_id)
+        self.color_to_node[old_color].erase(node_id)
+        self.color_to_node[new_color].insert(node_id)
 
 
     cpdef float compactness_score(self, double area_larger, double area_smaller, double area_node, int node_id,
@@ -75,9 +75,9 @@ cdef class PerimeterComputer:
             # cython doesn't implement unordered_map for Pair<int, int> so we have to pack into a long
             border_length = self.border_length_lookup[pack_int(node_id, neighbor)]
 
-            if self.node_to_color[new_color].count(neighbor) > 0:
+            if self.color_to_node[new_color].count(neighbor) > 0:
                 perim_larger_new -= border_length
-            elif self.node_to_color[old_color].count(neighbor) > 0:
+            elif self.color_to_node[old_color].count(neighbor) > 0:
                 perim_smaller_new += border_length
             else:
                 perim_larger_new += border_length
