@@ -54,6 +54,11 @@ for process in processes:
                     #                        "runInd_" + str(runInd))
                     if not os.path.exists(outPath):
                         os.makedirs(outPath)
+
+                    output_path = os.path.join('output/batchJobOutputs', jobname)
+                    if not os.path.exists(output_path):
+                        os.makedirs(output_path)
+
                     if "python src/scripts/run.py" in line:
                         line = line.rstrip()
                         line += ' ' + ' '.join(["--steps", str(steps)]) + ' '
