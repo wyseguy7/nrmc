@@ -26,6 +26,7 @@ if '--mecklenburg' in sys.argv:
     n_list = [0]
     folder = "--folder data/Mecklenburg/"
     process_name = "mecklenburg"
+    apd = 1.0
 
 else:
     district_list = [3,4]
@@ -33,6 +34,7 @@ else:
     n_list = [10, 20, 40]
     folder = ""
     process_name = "lattice"
+    apd = 0.1
 
 
 for process in processes:
@@ -55,7 +57,7 @@ for process in processes:
                         line += ' ' + ' '.join(["--steps", str(steps)]) + ' '
                         line += ' ' + ' '.join(["--process", process]) + ' '
                         line += ' ' + "--output_path " + outPath + " " +\
-                                "--score_func cut_length --score_weights 1.0 --num_districts {nd} --n [n} {folder}\n".format(nd=num_districts, n=n, folder=folder)
+                                "--score_func cut_length --score_weights 1.0 --apd {apd} --num_districts {nd} --n {n} {folder}\n".format(nd=num_districts, n=n, folder=folder, apd=apd)
 
                     line = line.replace("jobname", jobname)
                     fout.write(line)
