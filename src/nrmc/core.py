@@ -87,7 +87,7 @@ class MetropolisProcess(object):
             border_length_lookup.update({MetropolisProcess.pack_int(edge[1], edge[0]):self.state.graph.edges()[edge]['border_length'] for edge in self.state.graph.edges()})
             # we need both directions just to be sure
 
-            external_border_lookup = {node_id: self.state.graph.nodes()[node_id]['external_border_length'] for node_id in self.state.graph.nodes()}
+            external_border_lookup = {node_id: self.state.graph.nodes()[node_id]['external_border'] for node_id in self.state.graph.nodes()}
             adj_mapping_full = {node_id: list(self.state.graph.neighbors(node_id)) for node_id in self.state.graph.nodes()}
 
             self.state.perimeter_computer = PerimeterComputer(adj_mapping_full,  self.state.node_to_color,
