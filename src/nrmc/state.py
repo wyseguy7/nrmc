@@ -100,7 +100,7 @@ class State(object):
         # these just won't get serialized as they are difficult to initialize or store properly, mostly the updated attrs
         ignore = {"district_boundary", "district_boundary_updated",  "com_centroid", "com_updated", "contested_edges",
                   "contested_nodes", "contested_edges_updated", "boundary_node_counter", "boundary_node_updated",
-                  "articulation_points", "articulation_points_updated", "adj_mapping", "adj_mapping_full",
+                  "articulation_points", "articulation_points_updated", "adj_mapping", "adj_mapping_full", "perimeter_computer"
         }
 
         custom_dict = {'graph': node_link_data(self.graph),
