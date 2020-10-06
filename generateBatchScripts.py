@@ -59,7 +59,7 @@ for process in processes:
                         line += ' ' + ' '.join(["--steps", str(steps)]) + ' '
                         line += ' ' + ' '.join(["--process", process]) + ' '
                         line += ' ' + "--output_path " + outPath + " " +\
-                                "--num_districts {nd} --apd {apd} --n [n} {folder}\n".format(nd=num_districts, n=n, folder=folder, scoring=scoring, apd=apd)
+                                "--num_districts {nd} --apd {apd} --n {n} {folder}\n".format(nd=num_districts, n=n, folder=folder, scoring=scoring, apd=apd)
 
                     line = line.replace("jobname", jobname)
                     fout.write(line)
