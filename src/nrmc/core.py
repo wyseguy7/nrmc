@@ -49,7 +49,6 @@ class ProcessEncoder(json.JSONEncoder):
             return super().default(o)
 
 
-
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
