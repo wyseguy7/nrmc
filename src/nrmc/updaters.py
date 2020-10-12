@@ -142,18 +142,21 @@ def update_perimeter_and_area(state):
         node_id, old_color, new_color = move
 
         for neighbor in state.graph.neighbors(node_id):
+            border_length = state.graph.edges[(node_id, neighbor)]['border_length']
             if neighbor in state.color_to_node[new_color]:
-                # we need to reduce the perimeter of new_color by their shared amount
-                state.district_to_perimeter[new_color] -= state.graph.edges[(node_id, neighbor)]['border_length']
+                # this border is no longer contested, so subtract from both
+                state.district_to_perimeter[new_color] -= border_length
+                state.district_to_perimeter[old_color] -= border_length
 
             elif neighbor in state.color_to_node[old_color]:
-                # we need to increase the perimeter of old_color by their shared amount
-                state.district_to_perimeter[old_color] += state.graph.edges[(node_id, neighbor)]['border_length']
+                # this border is newly contested - so add to both
+                state.district_to_perimeter[old_color] += border_length
+                state.district_to_perimeter[new_color] += border_length
 
             else:
                 # we need to increase the perimeter of new_color AND decrease of old color. no change to the perimeter of the 3rd district
-                state.district_to_perimeter[new_color] += state.graph.edges[(node_id, neighbor)]['border_length']
-                state.district_to_perimeter[old_color] -= state.graph.edges[(node_id, neighbor)]['border_length']
+                state.district_to_perimeter[new_color] += border_length
+                state.district_to_perimeter[old_color] -= border_length
 
 
         if state.include_external_border:

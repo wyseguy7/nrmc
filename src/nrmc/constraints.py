@@ -19,7 +19,7 @@ def simply_connected(state, node_id, old_color, new_color):
         return True # this handles the vast majority of cases
 
     smaller = state.color_to_node[old_color] - {node_id}
-    contested_nodes = {i[0] for i in state.contested_edges}.union({i[1] for i in state.contested_edges}).intersection(
+    contested_nodes = ({i[0] for i in state.contested_edges}.union({i[1] for i in state.contested_edges})).intersection(
         smaller) # nodes that are contested and are in the shrunk district
     for node in contested_nodes:
         # is this node either on the boundary, or does it touch some other color than
