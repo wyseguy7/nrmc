@@ -8,7 +8,7 @@ sys.path.append('/gtmp/etw16/nonreversiblecodebase')
 
 folder = sys.argv[1] # todo check this
 
-files = glob.glob(os.path.join(folder, '*/*.pkl')) + glob.glob(os.path.join(folder, '*/*/*/*.pkl'))
+files = glob.glob(os.path.join(folder, '*/*.pkl')) + glob.glob(os.path.join(folder, '*/*/*/*/*/*.pkl'))
 
 try:
     df = pd.read_csv(sys.argv[2])
