@@ -77,7 +77,9 @@ cdef class PerimeterComputer:
 
             if self.color_to_node[new_color].count(neighbor) > 0:
                 perim_larger_new -= border_length
+                perim_smaller_new -= border_length
             elif self.color_to_node[old_color].count(neighbor) > 0:
+                perim_larger_new += border_length
                 perim_smaller_new += border_length
             else:
                 perim_larger_new += border_length
