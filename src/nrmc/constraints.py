@@ -15,6 +15,8 @@ def simply_connected(state, node_id, old_color, new_color):
     # this occurs iff there is another node district:old_color that touches either boundary or another color
     # update_contested_edges(state) # do we need this here or can we pull it somewhere else?
 
+    return True
+
     if state.boundary_node_counter[old_color] > 1:
         return True # this handles the vast majority of cases
 
