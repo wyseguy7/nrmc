@@ -44,6 +44,17 @@ def np_to_native_keys(o):
         return str(o) # seems like best option
 
 
+def load_matlab(path_dict):
+
+    out_dict = collections.defaultdict(list)
+    for path, array_lookup in path_dict.items():
+
+        matrices = mat_load(path) # load the things into list[np.array]
+        for k, v in array_lookup.items():
+            out_dict[k].extend([matrices[i] for i in v]) # add to relevant spot
+
+    return out_dict
+
 class State(object):
 
 
@@ -116,6 +127,37 @@ class State(object):
         # js is the nested, already parsed dictionary object
         graph = node_link_graph(js['graph'])
         return cls(graph, js['node_to_color'], **{k:v for k,v in js.items() if k != 'graph'})
+
+
+    @classmethod
+    def from_matlab(cls, path_dict, num_districts=64, **kwargs):
+
+        mat_lookup = load_matlab(path_dict) # path dict is key: (filepath, dict<int, array>) indicating which goes where
+
+        # determine global adjacency matrix as
+        mat_list = list(itertools.chain(**mat_lookup.values()))
+        adj = mat_list[0].copy()
+        for i in range(1, len(mat_list)):
+            adj = adj * mat_list
+
+
+        g = nx.Graph()
+        for i in range(adj.shape[0]):
+            for j in range(adj.shape[1]):
+                if adj[i,j] != 0:
+                    if i not in g.nodes():
+                        g.add_node(i)
+                    if j not in g.nodes():
+                        g.add_node(j)
+                    g.add_edge(i,j)
+
+
+        coloring = greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
+        state = cls(g, coloring, apd=5, **kwargs) # what's reasonable for APD?
+
+        state.matrix_lookup = mat_lookup
+        return state
+        # graph will only contain connected components - are there any disconnected components?
 
 
     @classmethod

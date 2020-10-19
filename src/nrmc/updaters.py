@@ -106,6 +106,48 @@ def update_contested_edges(state):
     #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
     state.contested_edges_updated = state.iteration
 
+def eigen_state_naive(state):
+
+    parcel_matrix = np.zeros(shape=(len(state.node_to_color),len(state.color_to_node)))
+    for node_id, district_id in state.node_to_color.items():
+        parcel_matrix[node_id, district_id] = 1 # MUST have integer node_id now
+
+    adj_mat_lookup = {}
+    for key, matrices in state.matrix_lookup.items():
+
+        adj_mat_list = []
+        for matrix in matrices:
+            # compute the matrix thing
+            adj_mat_list.append(np.matmul(np.matmul(parcel_matrix.T, matrix), parcel_matrix))
+
+        adj_mat_lookup[key] = adj_mat_list
+
+    return adj_mat_lookup
+
+
+def update_eigen_state(state):
+
+
+    if not hasattr(state, 'adj_mat'):
+
+        state.adj_mat = eigen_state_naive(state)
+        state.adj_mat_updated = state.iteration
+
+    for move in state.move_log[state.adj_mat_updated:]:
+        if move is not None:
+
+            node_id, old_color, new_color = move
+
+            for key, matrices in state.adj_mat.items():
+                for matrix in matrices:
+                    matrix[node_id,old_color] -= k
+
+
+
+
+
+
+
 
 def perimeter_naive(state):
     # TODO refactor

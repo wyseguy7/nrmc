@@ -22,6 +22,12 @@ def compactness_score(state, proposal):
     else:
         return _compactness_score(state, proposal)
 
+def eigen_score(state, proposal):
+
+    pass
+
+
+
 def _compactness_score(state, proposal):
     prop_node, old_color, new_color = proposal # unpack
 
