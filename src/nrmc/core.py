@@ -326,6 +326,11 @@ class TemperedProposalMixin(MetropolisProcess):
         if prop[0] is not None:  # ignore if we couldn't find a valid proposal
             self._proposal_state.handle_move((prop[0], prop[2], prop[1]))  # undo earlier move
 
+            # this MUST be updated immediately before another proposal is made, else issues occur
+            if hasattr(self.state, 'district_to_perimeter'):
+                update_perimeter_and_area(self._proposal_state)
+
+
     def proposal(self, state):
         # TODO this is common with SingleNodeFlipTempered, perhaps split this out
         scored_proposals = self.get_proposals(self.state)
