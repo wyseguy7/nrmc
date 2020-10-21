@@ -116,6 +116,10 @@ def perimeter_naive(state):
         dd[state.node_to_color[n0]] += shared_length
         dd[state.node_to_color[n1]] += shared_length
 
+    if state.include_external_border:
+        for node_id, district_id in state.node_to_color.items():
+            dd[district_id] += state.graph.nodes()[node_id]['external_border']
+
     return dd
 
 def area_naive(state):
@@ -165,7 +169,9 @@ def update_perimeter_and_area(state):
 
         state.district_to_area[old_color] -= state.graph.nodes()[node_id]['area']
         state.district_to_area[new_color] += state.graph.nodes()[node_id]['area']
-        state.perimeter_computer.update(node_id, old_color, new_color)
+
+        if cython_biconnected:
+            state.perimeter_computer.update(node_id, old_color, new_color)
 
     state.perimeter_updated = state.iteration
 
