@@ -22,6 +22,88 @@ def compactness_score(state, proposal):
     else:
         return _compactness_score(state, proposal)
 
+def gml_score(state, proposal):
+
+    from .neuro import gromov_wasserstein_barycenter_simple, gromov_wasserstein_discrepancy
+
+    ot_hyperpara = {'loss_type': 'L2',  # the key hyperparameters of GW distance
+               'ot_method': 'proximal',
+               'beta': 2e-7,
+               'outer_iteration': 300,
+               # outer, inner iteration, error bound of optimal transport
+               'iter_bound': 1e-30,
+               'inner_iteration': 1,
+               'sk_bound': 1e-30,
+               'node_prior': 0,
+               'max_iter': 200,  # iteration and error bound for calcuating barycenter
+               'cost_bound': 1e-16,
+               'update_p': False,  # optional updates of source distribution
+               'lr': 0,
+               'alpha': 0}
+
+
+
+
+    # first - get new matrix mapping
+    # {type: {graph_id: adjacency_matrix }}
+    matrix_lookup = get_matrix_update(state, proposal)
+
+
+    new_barycenter_lookup = {}
+
+    for group_id, adj_mat_lookup in matrix_lookup.items():
+
+        old_barycenter = state.barycenter_lookup[group_id]
+        barycenter, _, _ = gromov_wasserstein_barycenter_simple(old_barycenter, adj_mat_lookup,
+                                                                bary_size=state.bary_size, ot_hyperpara=ot_hyperpara)
+        new_barycenter_lookup[group_id] = barycenter
+
+    discrepancy_sum = 0
+
+    state._barycenter_proposal = new_barycenter_lookup # load this for future use if we accept the proposal
+
+    for group_id, bary in new_barycenter_lookup.items():
+        for other_group_id, other_bary in new_barycenter_lookup.items():
+            if group_id > other_group_id:
+                p_s = p_t = np.ones(shape=(bary.shape[0],1))
+                discrepancy_sum += gromov_wasserstein_discrepancy(bary, other_bary, p_s, p_t, ot_hyperpara=ot_hyperpara)
+
+
+    return discrepancy_sum
+
+
+def get_matrix_update(state, proposal):
+
+    import copy
+    node_id, old_color, new_color = proposal # unpack
+
+    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p,
+    parcellation[node_id, old_color] -= 1
+    parcellation[node_id, new_color] += 1
+
+    matrix_update = copy.copy(state.matrix_lookup)
+    for group_id, adj_mat_lookup in matrix_update.items():
+        group_full_adj_mats = state.full_adj_lookup[group_id] # TODO add this to state
+
+        for graph_id, adj_mat in adj_mat_lookup.items():
+            graph_adj = group_full_adj_mats[graph_id]
+
+            s_1 = graph_adj[node_id, parcellation[:, new_color]].sum()
+            s_2 = graph_adj[node_id, parcellation[:, old_color]].sum()
+            s_3 = graph_adj[node_id, node_id]
+
+            adj_mat[new_color, new_color] += 2*s_1 - s_3
+            off_diag_sum = s_2-s_1
+
+            adj_mat[old_color, new_color] += off_diag_sum
+            adj_mat[new_color, old_color] += off_diag_sum
+            adj_mat[old_color, old_color] += s_3 - 2*s_2
+
+            # TODO definitely check this section for bugs
+
+    return matrix_update
+
+
 def eigen_score(state, proposal):
 
     pass

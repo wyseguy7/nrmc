@@ -72,6 +72,30 @@ def create_district_boundary_naive(state):
     return district_boundary
 
 
+def parcellation_naive(state):
+
+    parcellation = np.zeros(shape=(len(state.node_to_color), len(state.color_to_node)), dtype=int)
+    for node_id, district_id in state.node_to_color.items():
+        parcellation[node_id, district_id] = 1
+    return parcellation
+
+
+def update_parcellation(state):
+
+    if not hasattr(state, 'parcellation'):
+        state.parcellation = parcellation_naive(state)
+        state.parcellation_updated = state.iteration
+
+    for move in state.move_log[state.parcellation_updated:]:
+
+        if move is not None:
+            node_id, old_color, new_color = move
+            state.parcellation[node_id, old_color] -= 1
+            state.parcellation[node_id, new_color] += 1
+
+    state.parcellation_updated = state.iteration
+
+
 def update_contested_edges(state):
     if not hasattr(state, 'contested_edges'):
         state.contested_edges = contested_edges_naive(state)

@@ -319,6 +319,9 @@ class TemperedProposalMixin(MetropolisProcess):
         self.state.contested_edges_updated +=1
         self.state.population_counter_updated += 1
 
+        if hasattr(state, '_barycenter_proposal'):
+            state.barycenter_lookup = state._barycenter_proposal # update from scoring because it's expensive
+
 
 
     def handle_rejection(self, prop, state):
