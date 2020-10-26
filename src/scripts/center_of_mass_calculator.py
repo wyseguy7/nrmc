@@ -5,6 +5,7 @@ import pandas as pd
 import os
 import multiprocessing as mp
 import argparse
+import functools
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
@@ -59,6 +60,9 @@ def func(filepath, polar=True):
     except Exception as e:
         print(e)
         return
+
+
+func_partial = functools.partial(func, polar=args.polar)
 
 with mp.Pool(processes=args.threads) as pool:
     pool.map(func, list(files.filepath))
