@@ -2,6 +2,7 @@ import random
 import numpy as np
 import collections
 import copy
+from collections import defaultdict
 
 def state_log_to_coloring(process):
     '''converts the state log to a an array of colorings, structured . only functions if coloring is an int'''
@@ -535,4 +536,46 @@ def get_rot_matrix(theta):
     return np.matrix([[ np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
 
 
+def state_to_apd(state_array, node_to_idx, node_to_population, ideal_pop=None):
+
+    if ideal_pop is None:
+        ideal_pop = sum(node_to_population.values())/state_array.shape[1]
+
+    district_to_pop = defaultdict(float)
+    for node_id, idx in node_to_idx.items():
+        for j in range(state_array.shape[1]):
+            if state_array[idx, j] == 1:
+
+                district_to_pop[j] += node_to_population[node_id]
+                break
+
+    return max([abs(pop-ideal_pop) for pop in district_to_pop.values()])/ideal_pop
+
+def calculate_apd(process, ideal_pop=None):
+
+    apd_list = []
+
+    state_array = np.zeros(shape=(len(process.state.node_to_color), len(process.state.color_to_node)))
+    node_to_idx = {b: a for a, b in enumerate(process.state.node_to_color.keys())}
+    node_to_population = {node_id: process.state.graph.nodes()[node_id]['population'] for node_id in process.state.graph.nodes()}
+
+    # calculate initial apd
+    for node, color in process._initial_state.node_to_color.items():
+        state_array[node_to_idx[node], color] = 1
+        # TODO assumption - colors are zero-indexed integers - can we do this?
+
+    apd = state_to_apd(state_array, node_to_idx, node_to_population)
+
+    for move in process.state.move_log:
+        if move is not None:
+            # update state
+            node_id, old_color, new_color = move
+            state_array[node_to_idx[node_id], old_color] = 0
+            state_array[node_to_idx[node_id], new_color] = 1
+
+            # recalculate
+            apd = state_to_apd(state_array, node_to_idx, node_to_population, ideal_pop)
+        apd_list.append(apd)
+
+    return apd_list
 
