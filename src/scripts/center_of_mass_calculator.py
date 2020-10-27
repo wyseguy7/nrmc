@@ -6,16 +6,17 @@ import os
 import multiprocessing as mp
 import argparse
 
-sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
+# sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
 
-from src.nrmc.analytics import extract_center_of_mass, center_of_mass_to_polar
+from nrmc.analytics import extract_center_of_mass, center_of_mass_to_polar
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--filepaths', action='store', type=str, required=True, default='features_out.csv')
 parser.add_argument('--polar', action='store_true')
-parser.add_argument('--threads', action='store')
+parser.add_argument('--threads', action='store', type=int)
+parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
-overwrite = args.overwrite== 'yes'
+overwrite = args.overwrite
 
 files = pd.read_csv(args.filepaths)
 # overwrite = False
