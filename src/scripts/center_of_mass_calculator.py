@@ -13,7 +13,7 @@ from nrmc.analytics import extract_center_of_mass, center_of_mass_to_polar
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--filepaths', action='store', type=str, required=True, default='features_out.csv')
-parser.add_argument('--polar', action='store_true')
+parser.add_argument('--polar', action='store_true', default=False)
 parser.add_argument('--threads', action='store', type=int)
 parser.add_argument('--overwrite', action='store_true')
 args = parser.parse_args()
@@ -66,4 +66,4 @@ def func(filepath, polar=True):
 func_partial = functools.partial(func, polar=args.polar)
 
 with mp.Pool(processes=args.threads) as pool:
-    pool.map(func, list(files.filepath))
+    pool.map(func_partial, list(files.filepath))
