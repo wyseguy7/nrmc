@@ -28,6 +28,7 @@ def gml_score(state, proposal):
 
     ot_hyperpara = {'loss_type': 'L2',  # the key hyperparameters of GW distance
                'ot_method': 'proximal',
+             'alpha': 0,
                'beta': 2e-7,
                'outer_iteration': 300,
                # outer, inner iteration, error bound of optimal transport
@@ -39,7 +40,7 @@ def gml_score(state, proposal):
                'cost_bound': 1e-16,
                'update_p': False,  # optional updates of source distribution
                'lr': 0,
-               'alpha': 0}
+}
 
 
 
@@ -47,6 +48,8 @@ def gml_score(state, proposal):
     # first - get new matrix mapping
     # {type: {graph_id: adjacency_matrix }}
     matrix_lookup = get_matrix_update(state, proposal)
+
+    state._updated_matrix_lookup = matrix_lookup
 
 
     new_barycenter_lookup = {}
@@ -71,8 +74,45 @@ def gml_score(state, proposal):
 
     return discrepancy_sum
 
+def update_matrix(state):
 
+    if not hasattr(state, 'matrix_updated'):
+        state.matrix_updated = state.iteration # make sure this is right
+
+
+    for move in state.move_log[state.matrix_updated:]:
+        if move is not None:
+            node_id, old_color, new_color = move
+
+            state.parcellation_matrix[node_id, old_color] -= 1
+            state.parcellation_matrix[node_id, new_color] += 1
+            state.matrix_lookup = state._updated_matrix_lookup
+
+# TODO test this version
 def get_matrix_update(state, proposal):
+
+    import copy
+    node_id, old_color, new_color = proposal # unpack
+
+    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p,
+    parcellation[node_id, old_color] -= 1
+    parcellation[node_id, new_color] += 1
+
+    matrix_update = copy.copy(state.matrix_lookup)
+    for group_id, adj_mat_lookup in matrix_update.items():
+        group_full_adj_mats = state.full_adj_lookup[group_id] # TODO add this to state
+
+        for graph_id, adj_mat in adj_mat_lookup.items():
+
+            adj_mat = parcellation.T @ group_full_adj_mats[graph_id] @ parcellation
+            adj_mat_lookup[graph_id] = adj_mat
+
+            # TODO definitely check this section for bugs
+
+    return matrix_update
+
+# TODO test this version
+def fast_get_matrix_update(state, proposal):
 
     import copy
     node_id, old_color, new_color = proposal # unpack

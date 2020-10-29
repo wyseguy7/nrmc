@@ -5,6 +5,7 @@ import random
 import json
 from collections.abc import Iterable
 from types import GeneratorType
+import h5py
 
 import networkx as nx
 import numpy as np
@@ -44,16 +45,23 @@ def np_to_native_keys(o):
         return str(o) # seems like best option
 
 
-def load_matlab(path_dict):
+def load_matlab(folder_path, select_vectors={'group_1': ([1,2,3,4,5], [5,6,7,8,9]), 'group_2': ([2,4,6,8,10], [12,14,16,18,20]) }):
+    # forgive my mutable input
+    dict_out = collections.defaultdict(list)
+    files = ('SBCI_SC_hcp_male.mat', 'SBCI_SC_hcp_female.mat')
 
-    out_dict = collections.defaultdict(list)
-    for path, array_lookup in path_dict.items():
 
-        matrices = mat_load(path) # load the things into list[np.array]
-        for k, v in array_lookup.items():
-            out_dict[k].extend([matrices[i] for i in v]) # add to relevant spot
 
-    return out_dict
+
+    for i in range(len(files)):
+
+        full_path = os.path.join(folder_path, files[i])
+        f = h5py.File(full_path)
+        mat = np.array(f['scbi_sc_tensor'])[:, 0, :, :] # slice into first part immediately
+        # reordering to desikan goes here
+        for k, v in select_vectors.items():
+            dict_out[k].extend([mat[j, :, :] for j in v[i]]) # see what I did there?
+    return dict_out
 
 class State(object):
 
@@ -130,9 +138,9 @@ class State(object):
 
 
     @classmethod
-    def from_matlab(cls, path_dict, num_districts=64, **kwargs):
+    def from_matlab(cls, num_districts=64, **kwargs):
 
-        mat_lookup = load_matlab(path_dict) # path dict is key: (filepath, dict<int, array>) indicating which goes where
+        mat_lookup = load_matlab(folder_path) # path dict is key: (filepath, dict<int, array>) indicating which goes where
 
         # determine global adjacency matrix as
         mat_list = list(itertools.chain(**mat_lookup.values()))

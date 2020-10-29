@@ -13,7 +13,7 @@ from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
     update_population, check_population, update_boundary_nodes
-from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score
+from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, gml_score, update_matrix
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
@@ -29,11 +29,15 @@ except ImportError:
 
 score_lookup = {'cut_length': cut_length_score,
                 'compactness': compactness_score,
-                'population_balance': population_balance_sq_score} # TODO rip out population_balance calculation from updater
+                'population_balance': population_balance_sq_score,
+                'gsl': gml_score
+                } # TODO rip out population_balance calculation from updater
 
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],
-                  'population_balance': [update_population]}
+                  'population_balance': [update_population]
+                  'gsl': update_matrix
+  }
 
 class ProcessEncoder(json.JSONEncoder):
     def default(self, o):
