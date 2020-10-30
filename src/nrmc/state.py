@@ -162,9 +162,16 @@ class State(object):
                         g.add_node(j)
                     g.add_edge(i,j)
 
-        print(len(list(nx.connected_components(g))))
-        coloring = greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
-        state = cls(g, coloring, **kwargs) # what's reasonable for APD?
+        # print(len(list(nx.connected_components(g))))
+        color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
+        node_to_color = dict()
+
+        # reverse the ordering
+        for district_id, nodes in color_to_node.items():
+            for node_id in nodes:
+                node_to_color[node_id] = district_id
+
+        state = cls(g, node_to_color, **kwargs) # what's reasonable for APD?
 
         state.matrix_lookup = mat_lookup
         return state
