@@ -35,7 +35,7 @@ score_lookup = {'cut_length': cut_length_score,
 
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],
-                  'population_balance': [update_population]
+                  'population_balance': [update_population],
                   'gsl': update_matrix
   }
 

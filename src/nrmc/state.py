@@ -56,8 +56,8 @@ def load_matlab(folder_path, select_vectors={'group_1': ([1,2,3,4,5], [5,6,7,8,9
     for i in range(len(files)):
 
         full_path = os.path.join(folder_path, files[i])
-        f = h5py.File(full_path)
-        mat = np.array(f['scbi_sc_tensor'])[:, 0, :, :] # slice into first part immediately
+        f = h5py.File(full_path, mode='r')
+        mat = np.array(f['sbci_sc_tensor'])[:, 0, :, :] # slice into first part immediately
         # reordering to desikan goes here
         for k, v in select_vectors.items():
             dict_out[k].extend([mat[j, :, :] for j in v[i]]) # see what I did there?
@@ -138,20 +138,23 @@ class State(object):
 
 
     @classmethod
-    def from_matlab(cls, num_districts=64, **kwargs):
+    def from_matlab(cls, folder_path, num_districts=64, **kwargs):
 
         mat_lookup = load_matlab(folder_path) # path dict is key: (filepath, dict<int, array>) indicating which goes where
 
         # determine global adjacency matrix as
-        mat_list = list(itertools.chain(**mat_lookup.values()))
+        mat_list = list(itertools.chain(*mat_lookup.values()))
         adj = mat_list[0].copy()
+        print(adj.shape)
         for i in range(1, len(mat_list)):
-            adj = adj * mat_list
+            adj = adj * mat_list[i]
 
 
         g = nx.Graph()
+        print(adj.shape)
         for i in range(adj.shape[0]):
             for j in range(adj.shape[1]):
+                # print(adj[i,j])
                 if adj[i,j] != 0:
                     if i not in g.nodes():
                         g.add_node(i)
@@ -159,9 +162,9 @@ class State(object):
                         g.add_node(j)
                     g.add_edge(i,j)
 
-
+        print(len(list(nx.connected_components(g))))
         coloring = greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
-        state = cls(g, coloring, apd=5, **kwargs) # what's reasonable for APD?
+        state = cls(g, coloring, **kwargs) # what's reasonable for APD?
 
         state.matrix_lookup = mat_lookup
         return state

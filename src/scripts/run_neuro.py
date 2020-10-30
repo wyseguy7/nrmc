@@ -23,7 +23,7 @@ parser.add_argument('--diagonal', action='store_true')
 parser.add_argument('--n', type=int, default=40)
 parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
-parser.add_argument('--apd', type=float, default=0.1)
+parser.add_argument('--apd', type=float, default=5)
 parser.add_argument('--profile', action='store_true')
 # parser.add_argument('--tempered', type=str)
 
@@ -48,7 +48,7 @@ state_args = {
 
 # create state from the relevant folder
 graph_type = args.folder.split(os.path.sep)[-1]
-state_new = State.from_matlab(**state_args)
+state_new = State.from_matlab(args.folder, **state_args)
 # state_new = State.from_folder(args.folder, graph_type=graph_type, **state_args)
 
 # state_new.ideal_pop = args.ideal_pop
