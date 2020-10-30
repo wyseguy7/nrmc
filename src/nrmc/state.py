@@ -159,8 +159,8 @@ class State(object):
                     if i not in g.nodes():
                         g.add_node(i)
                     if j not in g.nodes():
-                        g.add_node(j)
-                    g.add_edge(i,j)
+                        g.add_node(j, population=1) # this is mandatory for some reason
+                    g.add_edge(i,j, border_length=1) # so is this, idk?
 
         # print(len(list(nx.connected_components(g))))
         color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
