@@ -164,6 +164,7 @@ class State(object):
 
         print(len(list(nx.connected_components(g))))
         coloring = greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
+        print(coloring)
         state = cls(g, coloring, **kwargs) # what's reasonable for APD?
 
         state.matrix_lookup = mat_lookup

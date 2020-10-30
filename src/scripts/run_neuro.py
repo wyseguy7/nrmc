@@ -23,7 +23,7 @@ parser.add_argument('--diagonal', action='store_true')
 parser.add_argument('--n', type=int, default=40)
 parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
-parser.add_argument('--apd', type=float, default=5)
+parser.add_argument('--apd', type=float, default=64)
 parser.add_argument('--profile', action='store_true')
 # parser.add_argument('--tempered', type=str)
 
