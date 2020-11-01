@@ -158,9 +158,9 @@ class State(object):
                 # print(adj[i,j])
                 if adj[i,j] != 0:
                     if i not in g.nodes():
-                        g.add_node(i)
+                        g.add_node(i, population=1, boundary=True)
                     if j not in g.nodes():
-                        g.add_node(j, population=1) # this is mandatory for some reason
+                        g.add_node(j, population=1, boundary=True) # this is mandatory for some reason
                     g.add_edge(i,j, border_length=1) # so is this, idk?
 
         # print(len(list(nx.connected_components(g))))
