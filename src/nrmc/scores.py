@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.nrmc.updaters import get_matrix_update
+from .updaters import get_matrix_update
 
 try:
     from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer

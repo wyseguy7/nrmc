@@ -3,7 +3,6 @@ import collections
 import networkx as nx
 import numpy as np
 
-from .scores import population_balance_score
 
 try:
     from .biconnected import calculate_com_inner
@@ -251,7 +250,7 @@ def update_population(state):
                 node_id, old_color, new_color = move
                 state.population_counter[old_color] -= state.graph.nodes()[node_id]['population']
                 state.population_counter[new_color] += state.graph.nodes()[node_id]['population']
-                state.population_deviation = population_balance_score(state, move)
+                # state.population_deviation = population_balance_score(state, move)
 
     state.population_counter_updated = state.iteration
 
