@@ -4,7 +4,6 @@ import networkx as nx
 import numpy as np
 
 from .scores import population_balance_score
-from .state import CENTROID_DIM_LENGTH, log_contested_edges
 
 try:
     from .biconnected import calculate_com_inner
@@ -82,16 +81,16 @@ def parcellation_naive(state):
 
 def update_parcellation(state):
 
-    if not hasattr(state, 'parcellation'):
-        state.parcellation = parcellation_naive(state)
+    if not hasattr(state, 'parcellation_matrix'):
+        state.parcellation_matrix = parcellation_naive(state)
         state.parcellation_updated = state.iteration
 
     for move in state.move_log[state.parcellation_updated:]:
 
         if move is not None:
             node_id, old_color, new_color = move
-            state.parcellation[node_id, old_color] -= 1
-            state.parcellation[node_id, new_color] += 1
+            state.parcellation_matrix[node_id, old_color] -= 1
+            state.parcellation_matrix[node_id, new_color] += 1
 
     state.parcellation_updated = state.iteration
 
@@ -400,3 +399,74 @@ def contested_nodes_naive(state):
         if not all(color==state.node_to_color[other_id] for other_id in nx.neighbors(state.graph, node_id)):
             contested.add(node_id)
     return contested
+
+
+def get_matrix_update(state, proposal):
+
+    update_parcellation(state) # ensure that this is updated
+
+
+    import copy
+    node_id, old_color, new_color = proposal # unpack
+
+    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p
+    # this will get expensive, should avoid? but probably not worse than anything else we're doing
+    parcellation[node_id, old_color] -= 1
+    parcellation[node_id, new_color] += 1
+
+    return get_matrix_naive(state, parcellation)
+
+def get_matrix_naive(state, parcellation):
+    matrix_update = dict()
+
+    for group_id, adj_mat_lookup in state.full_adj_lookup.items():
+
+        adj_mat_update = dict()
+        for graph_id, adj_mat in adj_mat_lookup.items():
+            adj_mat_update[graph_id] = parcellation.T @ adj_mat @ parcellation
+        matrix_update[group_id] = adj_mat_update
+    return matrix_update
+
+def fast_get_matrix_update(state, proposal):
+
+    import copy
+    node_id, old_color, new_color = proposal # unpack
+
+    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p,
+    parcellation[node_id, old_color] -= 1
+    parcellation[node_id, new_color] += 1
+
+    matrix_update = copy.copy(state.matrix_lookup)
+    for group_id, adj_mat_lookup in matrix_update.items():
+        group_full_adj_mats = state.full_adj_lookup[group_id] # TODO add this to state
+
+        for graph_id, adj_mat in adj_mat_lookup.items():
+            graph_adj = group_full_adj_mats[graph_id]
+
+            s_1 = graph_adj[node_id, parcellation[:, new_color]].sum()
+            s_2 = graph_adj[node_id, parcellation[:, old_color]].sum()
+            s_3 = graph_adj[node_id, node_id]
+
+            adj_mat[new_color, new_color] += 2*s_1 - s_3
+            off_diag_sum = s_2-s_1
+
+            adj_mat[old_color, new_color] += off_diag_sum
+            adj_mat[new_color, old_color] += off_diag_sum
+            adj_mat[old_color, old_color] += s_3 - 2*s_2
+
+            # TODO definitely check this section for bugs
+
+    return matrix_update
+
+
+def log_contested_edges(state):
+    # maybe manage an array so we don't need to use these horrible loops
+    for edge in state.contested_edges:
+        # contested_nodes = set(itertools.chain(*state.contested_edges)) # this is horrible, maybe start tracking contested nodes?
+        state.contested_edge_counter[edge] += 1
+
+    for node in state.contested_nodes:
+        state.contested_node_counter[node] += 1
+
+
+CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?

@@ -2,7 +2,6 @@ import collections
 import os
 import itertools
 import random
-import json
 from collections.abc import Iterable
 from types import GeneratorType
 import h5py
@@ -12,7 +11,9 @@ import numpy as np
 import pandas as pd
 from networkx.readwrite.json_graph import node_link_graph, node_link_data
 
-CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
+from .updaters import get_matrix_naive, update_parcellation
+
+
 try:
     from .biconnected import calculate_com_inner
     cython_biconnected = True
@@ -173,7 +174,9 @@ class State(object):
 
         state = cls(g, node_to_color, **kwargs) # what's reasonable for APD?
 
-        state.matrix_lookup = mat_lookup
+        state.full_adj_lookup = {group_id: {graph_id: graph for graph_id, graph in enumerate(adj_list)} for group_id, adj_list in mat_lookup.items()}
+        update_parcellation(state) # urk
+        state.matrix_lookup = get_matrix_naive(state, state.parcellation) # just for init
         return state
         # graph will only contain connected components - are there any disconnected components?
 
@@ -431,16 +434,6 @@ def greedy_graph_coloring(graph, num_districts=3):
                     break
 
     return color_to_node
-
-
-def log_contested_edges(state):
-    # maybe manage an array so we don't need to use these horrible loops
-    for edge in state.contested_edges:
-        # contested_nodes = set(itertools.chain(*state.contested_edges)) # this is horrible, maybe start tracking contested nodes?
-        state.contested_edge_counter[edge] += 1
-
-    for node in state.contested_nodes:
-        state.contested_node_counter[node] += 1
 
 
 def connected_breadth_first(state, node_id, old_color):

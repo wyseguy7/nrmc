@@ -1,4 +1,7 @@
 import numpy as np
+
+from src.nrmc.updaters import get_matrix_update
+
 try:
     from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer
     cython_biconnected = True
@@ -74,74 +77,20 @@ def gml_score(state, proposal):
 
     return discrepancy_sum
 
-def update_matrix(state):
+# def update_matrix(state):
+#
+#     if not hasattr(state, 'matrix_updated'):
+#         state.matrix_updated = state.iteration # make sure this is right
+#
+#
+#     for move in state.move_log[state.matrix_updated:]:
+#         if move is not None:
+#             node_id, old_color, new_color = move
+#
+#             state.parcellation_matrix[node_id, old_color] -= 1
+#             state.parcellation_matrix[node_id, new_color] += 1
+#             state.matrix_lookup = state._updated_matrix_lookup
 
-    if not hasattr(state, 'matrix_updated'):
-        state.matrix_updated = state.iteration # make sure this is right
-
-
-    for move in state.move_log[state.matrix_updated:]:
-        if move is not None:
-            node_id, old_color, new_color = move
-
-            state.parcellation_matrix[node_id, old_color] -= 1
-            state.parcellation_matrix[node_id, new_color] += 1
-            state.matrix_lookup = state._updated_matrix_lookup
-
-# TODO test this version
-def get_matrix_update(state, proposal):
-
-    import copy
-    node_id, old_color, new_color = proposal # unpack
-
-    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p,
-    parcellation[node_id, old_color] -= 1
-    parcellation[node_id, new_color] += 1
-
-    matrix_update = copy.copy(state.matrix_lookup)
-    for group_id, adj_mat_lookup in matrix_update.items():
-        group_full_adj_mats = state.full_adj_lookup[group_id] # TODO add this to state
-
-        for graph_id, adj_mat in adj_mat_lookup.items():
-
-            adj_mat = parcellation.T @ group_full_adj_mats[graph_id] @ parcellation
-            adj_mat_lookup[graph_id] = adj_mat
-
-            # TODO definitely check this section for bugs
-
-    return matrix_update
-
-# TODO test this version
-def fast_get_matrix_update(state, proposal):
-
-    import copy
-    node_id, old_color, new_color = proposal # unpack
-
-    parcellation = copy.copy(state.parcellation_matrix) # parcellation is n times p,
-    parcellation[node_id, old_color] -= 1
-    parcellation[node_id, new_color] += 1
-
-    matrix_update = copy.copy(state.matrix_lookup)
-    for group_id, adj_mat_lookup in matrix_update.items():
-        group_full_adj_mats = state.full_adj_lookup[group_id] # TODO add this to state
-
-        for graph_id, adj_mat in adj_mat_lookup.items():
-            graph_adj = group_full_adj_mats[graph_id]
-
-            s_1 = graph_adj[node_id, parcellation[:, new_color]].sum()
-            s_2 = graph_adj[node_id, parcellation[:, old_color]].sum()
-            s_3 = graph_adj[node_id, node_id]
-
-            adj_mat[new_color, new_color] += 2*s_1 - s_3
-            off_diag_sum = s_2-s_1
-
-            adj_mat[old_color, new_color] += off_diag_sum
-            adj_mat[new_color, old_color] += off_diag_sum
-            adj_mat[old_color, old_color] += s_3 - 2*s_2
-
-            # TODO definitely check this section for bugs
-
-    return matrix_update
 
 
 def eigen_score(state, proposal):
