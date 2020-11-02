@@ -166,7 +166,7 @@ class State(object):
                         g.add_node(j, population=1, boundary=True) # this is mandatory for some reason
                     g.add_edge(i,j, border_length=1) # so is this, idk?
 
-        all_nodes = set(g.nodes())
+        # all_nodes = set(g.nodes())
         # nodes_to_erase = set(range(adj.shape[0]))-set(all_nodes) # need to get rid of any nodes that don't have connections
 
         print(len(list(g.nodes())))
@@ -178,7 +178,7 @@ class State(object):
 
         # eliminate nodes we didn't add to the graph - they will cause issues else
         # we could also just leave them in? but this could cause weirdness?
-        mat_lookup = {k:[mat[list(all_nodes),:][:, list(all_nodes)] for mat in v] for k,v in mat_lookup.items()}
+        # mat_lookup = {k:[mat[list(all_nodes),:][:, list(all_nodes)] for mat in v] for k,v in mat_lookup.items()}
 
         print("identified initial state")
         node_to_color = dict()
