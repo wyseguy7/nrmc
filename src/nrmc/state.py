@@ -46,22 +46,26 @@ def np_to_native_keys(o):
         return str(o) # seems like best option
 
 
-def load_matlab(folder_path, select_vectors={'group_1': ([1,2,3,4,5], [5,6,7,8,9]), 'group_2': ([2,4,6,8,10], [12,14,16,18,20]) }):
+def load_matlab(folder_path):
     # forgive my mutable input
     dict_out = collections.defaultdict(list)
     files = ('SBCI_SC_hcp_male.mat', 'SBCI_SC_hcp_female.mat')
 
+    from scipy.io import loadmat
+    select_list = [loadmat(f)['high_low'] for f in ('high_low_m.mat', 'high_low_f.mat')]
+    #select_vectors = {'group_1': ([1, 2, 3, 4, 5], [5, 6, 7, 8, 9]),
+    #                  'group_2': ([2, 4, 6, 8, 10], [12, 14, 16, 18, 20])}
 
-
-
+    ordering = h5py.File('SBCI_gender_atlas_ordering.mat')['atlas'][0,0,:] # correct vertex ordering
     for i in range(len(files)):
 
         full_path = os.path.join(folder_path, files[i])
         f = h5py.File(full_path, mode='r')
         mat = np.array(f['sbci_sc_tensor'])[:, 0, :, :] # slice into first part immediately
-        # reordering to desikan goes here
-        for k, v in select_vectors.items():
-            dict_out[k].extend([mat[j, :, :] for j in v[i]]) # see what I did there?
+
+        for k in [-1, 1]:
+            dict_out[k].extend([mat[j, ordering, ordering]*10**7 for j in range(select_list[i]) if select_list[i][0,j]==k])
+            # we multiply by 10**7 to make numbers nicer
     return dict_out
 
 class State(object):
@@ -162,13 +166,21 @@ class State(object):
                         g.add_node(j, population=1, boundary=True) # this is mandatory for some reason
                     g.add_edge(i,j, border_length=1) # so is this, idk?
 
-        # guarantee that each node is added even if not connected
         all_nodes = set(g.nodes())
-        for node_id in set(range(adj.shape[0]))-set(all_nodes):
-            g.add_node(node_id)
+        # nodes_to_erase = set(range(adj.shape[0]))-set(all_nodes) # need to get rid of any nodes that don't have connections
+
         print(len(list(g.nodes())))
         print(len(list(nx.connected_components(g))))
-        color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
+        # color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
+        desikan = h5py.File('SBCI_gender_atlas_ordering.mat')['atlas'][0,1,:]
+        desikan_to_idx = {i:j for i,j in enumerate(set(desikan))} # we want idx between 0...n
+        color_to_node = {k: {i for i in g.nodes() if desikan[i]==desikan_to_idx[k]} for k in range(len(desikan_to_idx))}
+
+        # eliminate nodes we didn't add to the graph - they will cause issues else
+        # we could also just leave them in? but this could cause weirdness? 
+        mat_lookup = {k:[mat[all_nodes, {all_nodes}] for mat in v] for k,v in mat_lookup.items()}
+
+        print("identified initial state")
         node_to_color = dict()
 
         # reverse the ordering
