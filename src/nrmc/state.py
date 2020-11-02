@@ -64,7 +64,7 @@ def load_matlab(folder_path):
         mat = np.array(f['sbci_sc_tensor'])[:, 0, :, :] # slice into first part immediately
 
         for k in [-1, 1]:
-            dict_out[k].extend([mat[j,:,:][ordering-1,:][:,ordering-1]*10**7 for j in range(select_list[i]) if select_list[i][0,j]==k])
+            dict_out[k].extend([mat[j,:,:][ordering-1,:][:,ordering-1]*10**7 for j in range(len(select_list[i][0])) if select_list[i][0,j]==k])
             # we multiply by 10**7 to make numbers nicer
     return dict_out
 
