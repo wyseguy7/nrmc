@@ -67,7 +67,7 @@ def gml_score(state, proposal):
         for other_group_id, other_bary in new_barycenter_lookup.items():
             if group_id > other_group_id:
                 p_s = p_t = np.ones(shape=(bary.shape[0],1))
-                discrepancy_sum += gromov_wasserstein_discrepancy(bary, other_bary, p_s, p_t, ot_hyperpara=ot_hyperpara)
+                discrepancy_sum += gromov_wasserstein_discrepancy(bary, other_bary, p_s, p_t, ot_hyperpara=ot_hyperpara)[1]
 
     return discrepancy_sum
 
