@@ -57,7 +57,7 @@ def gml_score(state, proposal):
     for group_id, adj_mat_lookup in matrix_lookup.items():
         old_barycenter = state.barycenter_lookup[group_id]
         barycenter, _, _ = gromov_wasserstein_barycenter_simple(old_barycenter, adj_mat_lookup,
-                                                                bary_size=state.bary_size, ot_hyperpara=ot_hyperpara)
+                                                                bary_size=state.parcellation_matrix.shape[1], ot_hyperpara=ot_hyperpara)
         new_barycenter_lookup[group_id] = barycenter
     discrepancy_sum = 0
 
