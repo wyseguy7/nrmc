@@ -52,7 +52,7 @@ def load_matlab(folder_path):
     files = ('SBCI_SC_hcp_male.mat', 'SBCI_SC_hcp_female.mat')
 
     from scipy.io import loadmat
-    select_list = [loadmat(f)['high_low'] for f in ('high_low_m.mat', 'high_low_f.mat')]
+    select_list = [loadmat(os.path.join(folder_path,f))['high_low'] for f in ('high_low_m.mat', 'high_low_f.mat')]
     #select_vectors = {'group_1': ([1, 2, 3, 4, 5], [5, 6, 7, 8, 9]),
     #                  'group_2': ([2, 4, 6, 8, 10], [12, 14, 16, 18, 20])}
 
@@ -177,7 +177,7 @@ class State(object):
         color_to_node = {k: {i for i in g.nodes() if desikan[i]==desikan_to_idx[k]} for k in range(len(desikan_to_idx))}
 
         # eliminate nodes we didn't add to the graph - they will cause issues else
-        # we could also just leave them in? but this could cause weirdness? 
+        # we could also just leave them in? but this could cause weirdness?
         mat_lookup = {k:[mat[all_nodes, {all_nodes}] for mat in v] for k,v in mat_lookup.items()}
 
         print("identified initial state")
