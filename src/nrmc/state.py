@@ -172,7 +172,7 @@ class State(object):
         print(len(list(g.nodes())))
         print(len(list(nx.connected_components(g))))
         # color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
-        desikan = h5py.File('SBCI_gender_atlas_ordering.mat')['atlas'][0,1,:]
+        desikan = h5py.File(os.path.join(folder_path, 'SBCI_gender_atlas_ordering.mat'))['atlas'][0,1,:]
         desikan_to_idx = {i:j for i,j in enumerate(set(desikan))} # we want idx between 0...n
         color_to_node = {k: {i for i in g.nodes() if desikan[i]==desikan_to_idx[k]} for k in range(len(desikan_to_idx))}
 
