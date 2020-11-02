@@ -72,7 +72,7 @@ def create_district_boundary_naive(state):
 
 def parcellation_naive(state):
 
-    parcellation = np.zeros(shape=(max(state.node_to_color), len(state.color_to_node)), dtype=int)
+    parcellation = np.zeros(shape=(max(state.node_to_color)+1, len(state.color_to_node)), dtype=int)
     for node_id, district_id in state.node_to_color.items():
         parcellation[node_id, district_id] = 1
     return parcellation
