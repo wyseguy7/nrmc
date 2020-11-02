@@ -178,7 +178,7 @@ class State(object):
 
         # eliminate nodes we didn't add to the graph - they will cause issues else
         # we could also just leave them in? but this could cause weirdness?
-        mat_lookup = {k:[mat[all_nodes, all_nodes] for mat in v] for k,v in mat_lookup.items()}
+        mat_lookup = {k:[mat[list(all_nodes),:][:, list(all_nodes)] for mat in v] for k,v in mat_lookup.items()}
 
         print("identified initial state")
         node_to_color = dict()
