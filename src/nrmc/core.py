@@ -122,9 +122,10 @@ class MetropolisProcess(object):
         with open(os.path.join(self.folder_path, self.run_id, '{}_process.pkl'.format(self.run_id)), mode='wb') as f:
             pickle.dump(self, f)
 
-        with open(os.path.join(self.folder_path, self.run_id, '{}_process.json'.format(self.run_id)), mode='w') as f:
-            # json.dump(self.toJson(), f) # boy do I hope this works
-            f.write(json.dumps(self, cls=ProcessEncoder, indent=4))
+        # this is really expensive so skip it for neuro
+        # with open(os.path.join(self.folder_path, self.run_id, '{}_process.json'.format(self.run_id)), mode='w') as f:
+        #     # json.dump(self.toJson(), f) # boy do I hope this works
+        #     f.write(json.dumps(self, cls=ProcessEncoder, indent=4))
 
 
     @property

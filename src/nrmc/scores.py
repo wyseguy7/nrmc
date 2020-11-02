@@ -51,19 +51,14 @@ def gml_score(state, proposal):
     # first - get new matrix mapping
     # {type: {graph_id: adjacency_matrix }}
     matrix_lookup = get_matrix_update(state, proposal)
-
     state._updated_matrix_lookup = matrix_lookup
-
-
     new_barycenter_lookup = {}
 
     for group_id, adj_mat_lookup in matrix_lookup.items():
-
         old_barycenter = state.barycenter_lookup[group_id]
         barycenter, _, _ = gromov_wasserstein_barycenter_simple(old_barycenter, adj_mat_lookup,
                                                                 bary_size=state.bary_size, ot_hyperpara=ot_hyperpara)
         new_barycenter_lookup[group_id] = barycenter
-
     discrepancy_sum = 0
 
     state._barycenter_proposal = new_barycenter_lookup # load this for future use if we accept the proposal
@@ -73,7 +68,6 @@ def gml_score(state, proposal):
             if group_id > other_group_id:
                 p_s = p_t = np.ones(shape=(bary.shape[0],1))
                 discrepancy_sum += gromov_wasserstein_discrepancy(bary, other_bary, p_s, p_t, ot_hyperpara=ot_hyperpara)
-
 
     return discrepancy_sum
 
