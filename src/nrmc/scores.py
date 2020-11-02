@@ -100,6 +100,10 @@ def eigen_score(state, proposal):
     eigen_lookup_new = eigen_naive(matrices_new)
     return eigen_score_inner(eigen_lookup_new)-eigen_score_inner(state.eigen_lookup)
 
+def frobenius_score(state, proposal):
+    pass
+
+    # this one is linear, yes?
 
 
 def _compactness_score(state, proposal):

@@ -80,6 +80,7 @@ try:
         date = str(pd.datetime.today().date())
         for i in range(args.steps):
             process.step()
+            print("ping")
 
             if i % 1000000 == 0:
                 process.save() #

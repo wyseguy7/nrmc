@@ -990,7 +990,7 @@ def sinkhorn_knopp_iteration(cost: np.ndarray, p_s: np.ndarray = None, p_t: np.n
         kernel = np.exp(-cost / beta)
 
     relative_error = np.inf
-    b = []
+    # b = []
     i = 0
     # print(a)
     while relative_error > error_bound and i < max_iter:
