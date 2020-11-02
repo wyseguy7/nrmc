@@ -150,7 +150,6 @@ class State(object):
         for i in range(1, len(mat_list)):
             adj = adj * mat_list[i]
 
-
         g = nx.Graph()
         print(adj.shape)
         for i in range(adj.shape[0]):
@@ -163,10 +162,12 @@ class State(object):
                         g.add_node(j, population=1, boundary=True) # this is mandatory for some reason
                     g.add_edge(i,j, border_length=1) # so is this, idk?
 
-
+        # guarantee that each node is added even if not connected
+        all_nodes = set(g.nodes())
+        for node_id in set(range(adj.shape[0]))-set(all_nodes):
+            g.add_node(node_id)
         print(len(list(g.nodes())))
-
-        # print(len(list(nx.connected_components(g))))
+        print(len(list(nx.connected_components(g))))
         color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
         node_to_color = dict()
 
