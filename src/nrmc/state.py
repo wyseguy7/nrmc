@@ -38,7 +38,7 @@ def np_to_native(o):
 
 def init_barycenter(adj_matrix_lookup):
     from scipy.sparse import csr_matrix
-    return csr_matrix(np.diag(np.ones(shape=(next(adj_matrix_lookup.values()).shape[0],))))
+    return csr_matrix(np.diag(np.ones(shape=(list(adj_matrix_lookup.values())[0]).shape[0],)))
 
 
 def np_to_native_keys(o):
