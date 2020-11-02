@@ -163,6 +163,9 @@ class State(object):
                         g.add_node(j, population=1, boundary=True) # this is mandatory for some reason
                     g.add_edge(i,j, border_length=1) # so is this, idk?
 
+
+        print(len(list(g.nodes())))
+
         # print(len(list(nx.connected_components(g))))
         color_to_node= greedy_graph_coloring(g, num_districts=num_districts) # swap out for desikan at some point
         node_to_color = dict()
@@ -176,7 +179,7 @@ class State(object):
 
         state.full_adj_lookup = {group_id: {graph_id: graph for graph_id, graph in enumerate(adj_list)} for group_id, adj_list in mat_lookup.items()}
         update_parcellation(state) # urk
-        state.matrix_lookup = get_matrix_naive(state, state.parcellation) # just for init
+        state.matrix_lookup = get_matrix_naive(state, state.parcellation_matrix) # just for init
         return state
         # graph will only contain connected components - are there any disconnected components?
 
