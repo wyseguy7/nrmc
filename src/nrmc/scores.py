@@ -1,6 +1,6 @@
 import numpy as np
 
-from .updaters import get_matrix_update
+from .updaters import get_matrix_update, eigen_naive
 
 try:
     from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer
@@ -35,12 +35,12 @@ def gml_score(state, proposal):
                'beta': 2e-7,
                'outer_iteration': 300,
                # outer, inner iteration, error bound of optimal transport
-               'iter_bound': 1e-30,
+               'iter_bound': 1e-4,
                'inner_iteration': 1,
-               'sk_bound': 1e-30,
+               'sk_bound': 1e-4,
                'node_prior': 0,
                'max_iter': 200,  # iteration and error bound for calcuating barycenter
-               'cost_bound': 1e-16,
+               'cost_bound': 1e-4,
                'update_p': False,  # optional updates of source distribution
                'lr': 0,
 }
@@ -87,9 +87,18 @@ def gml_score(state, proposal):
 
 
 
+def eigen_score_inner(eigen_lookup, alpha=1.2, p=2):
+    # TODO hardcoding here - should extract groups automatically
+    return ((np.exp(alpha*eigen_lookup[-1])-np.exp(alpha*eigen_lookup[1]))**p).sum()
+    # np.exp(alpha*(eigen_lookup[-1]-eigen))
+
+
+
 def eigen_score(state, proposal):
 
-    pass
+    matrices_new = get_matrix_update(state,proposal)
+    eigen_lookup_new = eigen_naive(matrices_new)
+    return eigen_score_inner(eigen_lookup_new)-eigen_score_inner(state.eigen_lookup)
 
 
 

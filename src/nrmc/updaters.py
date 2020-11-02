@@ -128,47 +128,41 @@ def update_contested_edges(state):
     #     # at some point it will be more efficient to just naively reconstruct the contested edges, we should look out for this
     state.contested_edges_updated = state.iteration
 
-def eigen_state_naive(state):
-
-    parcel_matrix = np.zeros(shape=(len(state.node_to_color),len(state.color_to_node)))
-    for node_id, district_id in state.node_to_color.items():
-        parcel_matrix[node_id, district_id] = 1 # MUST have integer node_id now
-
-    adj_mat_lookup = {}
-    for key, matrices in state.matrix_lookup.items():
-
-        adj_mat_list = []
-        for matrix in matrices:
-            # compute the matrix thing
-            adj_mat_list.append(np.matmul(np.matmul(parcel_matrix.T, matrix), parcel_matrix))
-
-        adj_mat_lookup[key] = adj_mat_list
-
-    return adj_mat_lookup
-
-
-def update_eigen_state(state):
+# def eigen_state_naive(state):
+#
+#     parcel_matrix = np.zeros(shape=(len(state.node_to_color),len(state.color_to_node)))
+#     for node_id, district_id in state.node_to_color.items():
+#         parcel_matrix[node_id, district_id] = 1 # MUST have integer node_id now
+#
+#     adj_mat_lookup = {}
+#     for key, matrices in state.matrix_lookup.items():
+#
+#         adj_mat_list = []
+#         for matrix in matrices:
+#             # compute the matrix thing
+#             adj_mat_list.append(np.matmul(np.matmul(parcel_matrix.T, matrix), parcel_matrix))
+#
+#         adj_mat_lookup[key] = adj_mat_list
+#
+#     return adj_mat_lookup
 
 
-    if not hasattr(state, 'adj_mat'):
-
-        state.adj_mat = eigen_state_naive(state)
-        state.adj_mat_updated = state.iteration
-
-    for move in state.move_log[state.adj_mat_updated:]:
-        if move is not None:
-
-            node_id, old_color, new_color = move
-
-            for key, matrices in state.adj_mat.items():
-                for matrix in matrices:
-                    matrix[node_id,old_color] -= k
-
-
-
-
-
-
+# def update_eigen_state(state):
+#
+#
+#     if not hasattr(state, 'adj_mat'):
+#
+#         state.adj_mat = eigen_state_naive(state)
+#         state.adj_mat_updated = state.iteration
+#
+#     for move in state.move_log[state.adj_mat_updated:]:
+#         if move is not None:
+#
+#             node_id, old_color, new_color = move
+#
+#             for key, matrices in state.adj_mat.items():
+#                 for matrix in matrices:
+#                     matrix[node_id,old_color] -= k
 
 
 def perimeter_naive(state):
@@ -466,6 +460,37 @@ def log_contested_edges(state):
 
     for node in state.contested_nodes:
         state.contested_node_counter[node] += 1
+
+def eigen_naive(matrix_lookup):
+
+    from numpy.linalg import eigvals
+    eigen_lookup = dict()
+    for group_id, adj_mat_lookup in matrix_lookup.items():
+
+        # TODO maybe consider laplacian here instead?
+        mat_list = iter(adj_mat_lookup.values())
+        matrix_sum = next(mat_list)
+        for mat in mat_list:
+            matrix_sum += mat
+        eigen_lookup[group_id] = eigvals(matrix_sum)
+
+    return eigen_lookup
+
+
+
+def update_eigenvectors(state):
+    # update_matrix(state) # TODO is this correct?
+
+    if not hasattr(state, 'eigen_lookup'):
+        state.eigen_lookup = eigen_naive(state.matrix_lookup)
+        state.eigen_updated = state.iteration
+
+    for move in state.move_log[state.eigen_updated:]:
+        if move is not None:
+            node_id, old_color, new_color = move
+            state.eigen_lookup = eigen_naive(state.matrix_lookup) # doesn't seem to be a better way to do this
+    state.eigen_updated = state.iteration
+
 
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
