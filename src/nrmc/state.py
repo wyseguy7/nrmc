@@ -56,7 +56,7 @@ def load_matlab(folder_path):
     #select_vectors = {'group_1': ([1, 2, 3, 4, 5], [5, 6, 7, 8, 9]),
     #                  'group_2': ([2, 4, 6, 8, 10], [12, 14, 16, 18, 20])}
 
-    ordering = h5py.File('SBCI_gender_atlas_ordering.mat')['atlas'][0,0,:] # correct vertex ordering
+    ordering = h5py.File(os.path.join(folder_path,'SBCI_gender_atlas_ordering.mat'))['atlas'][0,0,:] # correct vertex ordering
     for i in range(len(files)):
 
         full_path = os.path.join(folder_path, files[i])
