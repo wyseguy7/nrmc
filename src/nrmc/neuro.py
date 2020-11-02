@@ -706,6 +706,8 @@ def gromov_wasserstein_barycenter_simple(barycenter0, costs, bary_size=60, ot_hy
     transports = {}
     p_s = {k: np.ones(shape=(costs[k].shape[0], 1)) for k in costs} # figure this out
     p_center = np.ones(shape=(bary_size, 1))
+    for n in costs.keys():
+        transports[n] = np.matmul(p_s[n], p_center.T)
 
     # costs should be all our adjacency matrices? or some inverse?
     weights = {k:1. for k in costs}
