@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from networkx.readwrite.json_graph import node_link_graph, node_link_data
 
-from .updaters import get_matrix_naive, update_parcellation
+from .updaters import get_matrix_naive, update_parcellation, adjacency_with_threshold
 
 
 try:
@@ -148,16 +148,12 @@ class State(object):
 
 
     @classmethod
-    def from_matlab(cls, folder_path, num_districts=64, **kwargs):
+    def from_matlab(cls, folder_path, num_districts=64, adjacency_threshold=1, **kwargs):
 
         mat_lookup = load_matlab(folder_path) # path dict is key: (filepath, dict<int, array>) indicating which goes where
 
         # determine global adjacency matrix as
-        mat_list = list(itertools.chain(*mat_lookup.values()))
-        adj = mat_list[0].copy()
-        print(adj.shape)
-        for i in range(1, len(mat_list)):
-            adj = adj * mat_list[i]
+        adj = adjacency_with_threshold(mat_lookup, threshold=adjacency_threshold)
 
         g = nx.Graph()
         print(adj.shape)

@@ -92,25 +92,35 @@ def update_parcellation(state):
             state.parcellation_matrix[node_id, old_color] -= 1
             state.parcellation_matrix[node_id, new_color] += 1
 
-            for group_id, adj_mat_lookup in state.matrix_lookup.items():
-                group_full_adj_mats = state.full_adj_lookup[group_id]  # TODO add this to state
+            state.matrix_lookup = get_matrix_naive(state, state.parcellation_matrix) # until we've sorted this out
 
-                for graph_id, adj_mat in adj_mat_lookup.items():
-                    graph_adj = group_full_adj_mats[graph_id]
-
-                    s_1 = graph_adj[node_id, state.parcellation_matrix[:, new_color]].sum()
-                    s_2 = graph_adj[node_id, state.parcellation_matrix[:, old_color]].sum()
-                    s_3 = graph_adj[node_id, node_id]
-
-                    adj_mat[new_color, new_color] += 2 * s_1 - s_3
-                    off_diag_sum = s_2 - s_1
-
-                    adj_mat[old_color, new_color] += off_diag_sum
-                    adj_mat[new_color, old_color] += off_diag_sum
-                    adj_mat[old_color, old_color] += s_3 - 2 * s_2
+            # for group_id, adj_mat_lookup in state.matrix_lookup.items():
+            #     group_full_adj_mats = state.full_adj_lookup[group_id]  # TODO add this to state
+            #
+            #     for graph_id, adj_mat in adj_mat_lookup.items():
+            #         graph_adj = group_full_adj_mats[graph_id]
+            #
+            #         s_1 = graph_adj[node_id, state.parcellation_matrix[:, new_color]].sum()
+            #         s_2 = graph_adj[node_id, state.parcellation_matrix[:, old_color]].sum()
+            #         s_3 = graph_adj[node_id, node_id]
+            #
+            #         adj_mat[new_color, new_color] += 2 * s_1 - s_3
+            #         off_diag_sum = s_2 - s_1
+            #
+            #         adj_mat[old_color, new_color] += off_diag_sum
+            #         adj_mat[new_color, old_color] += off_diag_sum
+            #         adj_mat[old_color, old_color] += s_3 - 2 * s_2
 
     state.parcellation_updated = state.iteration
 
+def adjacency_with_threshold(mat_lookup, threshold=1):
+    import itertools
+    # mat_lookup Dict[int:Dict[int:np.ndarray]]
+    mat_list = list(itertools.chain(*mat_lookup.values()))
+    base_mat = (mat_list[0] > threshold)
+    for mat in mat_list[1:]:
+        base_mat *= (mat > threshold)
+    return base_mat
 
 def update_contested_edges(state):
     if not hasattr(state, 'contested_edges'):
