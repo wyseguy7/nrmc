@@ -25,6 +25,8 @@ parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
 parser.add_argument('--apd', type=float, default=64)
 parser.add_argument('--profile', action='store_true')
+parser.add_argument('--adjacency_threshold', action='store', type=float, default=10)
+
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
@@ -41,7 +43,8 @@ state_args = {
     'apd': args.apd,
     'involution': args.involution,
     'ideal_pop': args.ideal_pop,
-    'num_districts': args.num_districts
+    'num_districts': args.num_districts,
+    'adjacency_threshold': args.adjacency_threshold
 }
 
 
