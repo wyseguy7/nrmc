@@ -116,8 +116,7 @@ def update_parcellation(state):
 def adjacency_with_threshold(mat_lookup, threshold=1):
     import itertools
     # mat_lookup Dict[int:Dict[int:np.ndarray]]
-     # TODO hardcoding here
-    mat_list = list(mat_lookup[-1].values()) + list(mat_lookup[1].values())# list(itertools.chain(*mat_lookup.values()))
+    mat_list = sum(mat_lookup.values(), []) # obtain list of matrices
     base_mat = (mat_list[0] > threshold)
     for mat in mat_list[1:]:
         base_mat *= (mat > threshold)
