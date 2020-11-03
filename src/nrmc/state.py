@@ -77,7 +77,7 @@ class State(object):
 
 
     def __init__(self, graph, coloring, log_contested_edges = True, include_external_border = True,
-                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice', **kwargs):
+                 coerce_int = True, apd=0.1, ideal_pop = None, involution = 1, graph_type='lattice', alpha=1.2, **kwargs):
 
 
         if coerce_int:
@@ -89,6 +89,7 @@ class State(object):
         self.coerce_int = coerce_int
         self.graph = graph
         self.graph_type = graph_type
+        self.alpha = alpha
 
         self.node_to_color = coloring
         d = collections.defaultdict(set)
