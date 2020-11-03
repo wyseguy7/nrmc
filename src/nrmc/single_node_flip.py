@@ -26,7 +26,7 @@ class SingleNodeFlip(MetropolisProcess):
         # picks a proposal randomly without any weighting
         proposals = self.get_proposals(self.state) # this is a set now
         # score = self.score_proposal()
-        proposal = random.choices(proposals.keys(), weights=proposals.values())[0]
+        proposal = random.choices(list(proposals.keys()), weights=list(proposals.values()))[0]
         node_id, old_color, new_color = proposal
         prob = self.score_to_prob(self.score_proposal(node_id, old_color, new_color, state))  # should be totally unweighted here
         return proposal, prob
