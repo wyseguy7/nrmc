@@ -113,7 +113,14 @@ def update_parcellation(state):
 
     state.parcellation_updated = state.iteration
 
-def adjacency_with_threshold(mat_lookup, threshold=1):
+def adjacency_with_threshold(mat_lookup, threshold=5):
+
+    # extract columns where we are above a threshold
+    mat_list = sum(mat_lookup.values(), []) # obtain list of matrices
+    base_mat = sum(mat_list[1:] , mat_list[0].copy()) # sum the matrices
+    return base_mat > np.percentile(base_mat, (base_mat.shape[0]-threshold)/base_mat.shape[0]*100, axis=1)
+
+def adjacency_with_threshold_old(mat_lookup, threshold=1):
     import itertools
     # mat_lookup Dict[int:Dict[int:np.ndarray]]
     mat_list = sum(mat_lookup.values(), []) # obtain list of matrices
