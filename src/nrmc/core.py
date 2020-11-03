@@ -12,7 +12,7 @@ import networkx as nx
 from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
-    update_population, check_population, update_boundary_nodes, update_parcellation
+    update_population, check_population, update_boundary_nodes, update_parcellation, update_eigenvectors
 from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, \
     gml_score, frobenius_score, eigen_score, parcellation_quality_score
 
@@ -42,7 +42,7 @@ score_updaters = {'cut_length': [],
                   'population_balance': [update_population],
                   'gsl': [update_parcellation],
                   'frobenius': [update_parcellation],
-                  'eigen': [update_parcellation],
+                  'eigen': [update_parcellation, update_eigenvectors], # ordering important here
                   'parcellation_quality': [update_parcellation]
   }
 
