@@ -154,6 +154,7 @@ class State(object):
 
         # determine global adjacency matrix as
         adj = adjacency_with_threshold(mat_lookup, threshold=adjacency_threshold)
+        print(adj.sum())
 
         g = nx.Graph()
         print(adj.shape)

@@ -25,7 +25,7 @@ parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
 parser.add_argument('--apd', type=float, default=64)
 parser.add_argument('--profile', action='store_true')
-parser.add_argument('--adjacency_threshold', action='store', type=float, default=10)
+parser.add_argument('--adjacency_threshold', action='store', type=float, default=5)
 
 # parser.add_argument('--tempered', type=str)
 
@@ -85,7 +85,7 @@ try:
             process.step()
             # print("ping")
 
-            if i % 1000000 == 0:
+            if i % 10000 == 0:
                 process.save() #
 
     if args.profile:

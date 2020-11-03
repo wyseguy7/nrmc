@@ -98,7 +98,8 @@ def pq_inner(matrices):
 
 def parcellation_quality_score(state, proposal):
 
-    matrix_lookup_new = fast_get_matrix_update(state,proposal)
+    # matrix_lookup_new = fast_get_matrix_update(state,proposal)
+    matrix_lookup_new = get_matrix_update(state, proposal)
     # score_sum = 0
     my_sum = sum(pq_inner(mat_lookup.values()) for mat_lookup in matrix_lookup_new.values()) - sum(pq_inner(mat_lookup.values()) for mat_lookup in state.matrix_lookup.values())
     # print(my_sum.shape)
@@ -107,7 +108,9 @@ def parcellation_quality_score(state, proposal):
 
 def eigen_score(state, proposal):
 
-    matrices_new = fast_get_matrix_update(state,proposal)
+    # matrices_new = fast_get_matrix_update(state,proposal)
+    matrices_new = get_matrix_update(state, proposal)
+
     eigen_lookup_new = eigen_naive(matrices_new)
     return (eigen_score_inner(eigen_lookup_new, alpha=state.alpha)-eigen_score_inner(state.eigen_lookup, alpha=state.alpha))*-1
     # we want to maximize eigen_score_inner so multiply by -1
@@ -126,7 +129,8 @@ def mean_matrix_dict(matrix_lookup):
 
 def frobenius_score(state, proposal):
 
-    matrix_lookup_new = fast_get_matrix_update(state, proposal) # get updated state
+    # matrix_lookup_new = fast_get_matrix_update(state, proposal) # get updated state
+    matrix_lookup_new = get_matrix_update(state, proposal)  # get updated state
     matrix_mean_new = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in matrix_lookup_new.items()}
     matrix_mean_old = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in state.matrix_lookup.items()}
     # is this expensive?
