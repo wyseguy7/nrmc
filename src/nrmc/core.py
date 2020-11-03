@@ -13,7 +13,8 @@ from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
     update_population, check_population, update_boundary_nodes, update_parcellation
-from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, gml_score
+from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, \
+    gml_score, frobenius_score, eigen_score, parcellation_quality_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
@@ -30,13 +31,19 @@ except ImportError:
 score_lookup = {'cut_length': cut_length_score,
                 'compactness': compactness_score,
                 'population_balance': population_balance_sq_score,
-                'gsl': gml_score
+                'gsl': gml_score,
+                'frobenius': frobenius_score,
+                'eigen': eigen_score,
+                'parcellation_quality': parcellation_quality_score
                 } # TODO rip out population_balance calculation from updater
 
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],
                   'population_balance': [update_population],
-                  'gsl': [update_parcellation]
+                  'gsl': [update_parcellation],
+                  'frobenius': [update_parcellation],
+                  'eigen': [update_parcellation],
+                  'parcellation_quality': [update_parcellation]
   }
 
 class ProcessEncoder(json.JSONEncoder):

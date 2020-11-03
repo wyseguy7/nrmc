@@ -82,6 +82,7 @@ def update_parcellation(state):
 
     if not hasattr(state, 'parcellation_matrix'):
         state.parcellation_matrix = parcellation_naive(state)
+        state.matrix_lookup = get_matrix_naive(state, state.parcellation_matrix)
         state.parcellation_updated = state.iteration
 
     for move in state.move_log[state.parcellation_updated:]:
@@ -90,6 +91,23 @@ def update_parcellation(state):
             node_id, old_color, new_color = move
             state.parcellation_matrix[node_id, old_color] -= 1
             state.parcellation_matrix[node_id, new_color] += 1
+
+            for group_id, adj_mat_lookup in state.matrix_lookup.items():
+                group_full_adj_mats = state.full_adj_lookup[group_id]  # TODO add this to state
+
+                for graph_id, adj_mat in adj_mat_lookup.items():
+                    graph_adj = group_full_adj_mats[graph_id]
+
+                    s_1 = graph_adj[node_id, state.parcellation_matrix[:, new_color]].sum()
+                    s_2 = graph_adj[node_id, state.parcellation_matrix[:, old_color]].sum()
+                    s_3 = graph_adj[node_id, node_id]
+
+                    adj_mat[new_color, new_color] += 2 * s_1 - s_3
+                    off_diag_sum = s_2 - s_1
+
+                    adj_mat[old_color, new_color] += off_diag_sum
+                    adj_mat[new_color, old_color] += off_diag_sum
+                    adj_mat[old_color, old_color] += s_3 - 2 * s_2
 
     state.parcellation_updated = state.iteration
 
@@ -421,6 +439,7 @@ def get_matrix_naive(state, parcellation):
     return matrix_update
 
 def fast_get_matrix_update(state, proposal):
+    update_parcellation(state) # guarantee this is updated - this is for parcellations only
 
     import copy
     node_id, old_color, new_color = proposal # unpack

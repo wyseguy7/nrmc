@@ -1,6 +1,7 @@
 import numpy as np
+import copy
 
-from .updaters import get_matrix_update, eigen_naive
+from .updaters import get_matrix_update, eigen_naive, fast_get_matrix_update
 
 try:
     from .biconnected import biconnected_dfs, dot_product, calculate_com_inner, PerimeterComputer
@@ -92,18 +93,43 @@ def eigen_score_inner(eigen_lookup, alpha=1.2, p=2):
     return ((np.exp(alpha*eigen_lookup[-1])-np.exp(alpha*eigen_lookup[1]))**p).sum()
     # np.exp(alpha*(eigen_lookup[-1]-eigen))
 
+def pq_inner(matrices):
+    return sum((matrix / np.diag(matrix)[:,None]).sum(axis=1)/matrix.shape[0] for matrix in matrices)
+
+def parcellation_quality_score(state, proposal):
+
+    matrix_lookup_new = fast_get_matrix_update(state,proposal)
+    # score_sum = 0
+
+    return sum(pq_inner(mat_lookup.values()) for mat_lookup in matrix_lookup_new.values()) - sum(pq_inner(mat_lookup.values()) for mat_lookup in state.matrix_lookup.values())
 
 
 def eigen_score(state, proposal):
 
-    matrices_new = get_matrix_update(state,proposal)
+    matrices_new = fast_get_matrix_update(state,proposal)
     eigen_lookup_new = eigen_naive(matrices_new)
-    return eigen_score_inner(eigen_lookup_new)-eigen_score_inner(state.eigen_lookup)
+    return (eigen_score_inner(eigen_lookup_new, alpha=state.alpha)-eigen_score_inner(state.eigen_lookup, alpha=state.alpha))*-1
+    # we want to maximize eigen_score_inner so multiply by -1
+
+def mean_matrix_dict(matrix_lookup):
+    # tired of writing this function
+    counter = 1
+    matrices = list(matrix_lookup.values())
+    matrix = copy.copy(matrices.pop())
+    for mat in matrices:
+        counter += 1
+        matrix += mat
+
+    return matrix/counter
+
 
 def frobenius_score(state, proposal):
-    pass
 
-    # this one is linear, yes?
+    matrix_lookup_new = fast_get_matrix_update(state, proposal) # get updated state
+    matrix_mean_new = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in matrix_lookup_new}
+    matrix_mean_old = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in state.matrix_lookup}
+    # is this expensive?
+    return np.abs(np.trace(matrix_mean_new[-1] @ matrix_mean_new[1])) - np.abs(np.trace(matrix_mean_old[-1] @ matrix_mean_old[1]))
 
 
 def _compactness_score(state, proposal):

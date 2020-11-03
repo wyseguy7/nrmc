@@ -196,7 +196,7 @@ class State(object):
 
         state.full_adj_lookup = {group_id: {graph_id: graph for graph_id, graph in enumerate(adj_list)} for group_id, adj_list in mat_lookup.items()}
         update_parcellation(state) # urk
-        state.matrix_lookup = get_matrix_naive(state, state.parcellation_matrix) # just for init
+        # state.matrix_lookup = get_matrix_naive(state, state.parcellation_matrix) # just for init
         state.barycenter_lookup = {k: init_barycenter(v) for k,v in state.matrix_lookup.items()}
 
         return state
