@@ -100,8 +100,9 @@ def parcellation_quality_score(state, proposal):
 
     matrix_lookup_new = fast_get_matrix_update(state,proposal)
     # score_sum = 0
-
-    return sum(pq_inner(mat_lookup.values()) for mat_lookup in matrix_lookup_new.values()) - sum(pq_inner(mat_lookup.values()) for mat_lookup in state.matrix_lookup.values())
+    my_sum = sum(pq_inner(mat_lookup.values()) for mat_lookup in matrix_lookup_new.values()) - sum(pq_inner(mat_lookup.values()) for mat_lookup in state.matrix_lookup.values())
+    print(my_sum.shape)
+    return my_sum
 
 
 def eigen_score(state, proposal):
