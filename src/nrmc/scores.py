@@ -126,8 +126,8 @@ def mean_matrix_dict(matrix_lookup):
 def frobenius_score(state, proposal):
 
     matrix_lookup_new = fast_get_matrix_update(state, proposal) # get updated state
-    matrix_mean_new = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in matrix_lookup_new}
-    matrix_mean_old = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in state.matrix_lookup}
+    matrix_mean_new = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in matrix_lookup_new.items()}
+    matrix_mean_old = {group_id: mean_matrix_dict(adj_mat_lookup) for group_id, adj_mat_lookup in state.matrix_lookup.items()}
     # is this expensive?
     return np.abs(np.trace(matrix_mean_new[-1] @ matrix_mean_new[1])) - np.abs(np.trace(matrix_mean_old[-1] @ matrix_mean_old[1]))
 
