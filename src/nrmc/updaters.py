@@ -230,41 +230,41 @@ def update_district_boundary(state):
     # TODO we have repeated code in two places, rip out into functione
     # Also this function is ridiculous
 
-    if len(moves_to_do) < 5:
-        for node_id, old_color, new_color in moves_to_do:
-            for neighbor in state.graph.neighbors(node_id):
-                neighbor_color = state.node_to_color[neighbor]
-                key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
-                # node_key = (min(neighbor, node_id), max(neighbor))
+    # if len(moves_to_do) < 5:
+    for node_id, old_color, new_color in moves_to_do:
+        for neighbor in state.graph.neighbors(node_id):
+            neighbor_color = state.node_to_color[neighbor]
+            key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+            # node_key = (min(neighbor, node_id), max(neighbor))
 
-                if neighbor_color != new_color:
-                    state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
-                else: # color == new_color
-                    node_key = (min(neighbor, node_id), max(neighbor, node_id))
-                    key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
-                    if node_key in state.district_boundary[key]:
-                        state.district_boundary[key].remove(node_key)
+            if neighbor_color != new_color:
+                state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
+            else: # color == new_color
+                node_key = (min(neighbor, node_id), max(neighbor, node_id))
+                key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
+                if node_key in state.district_boundary[key]:
+                    state.district_boundary[key].remove(node_key)
 
-    else:
-        perturbed_nodes = dict()
-        for node_id, old_color, new_color in moves_to_do:
-
-            if node_id in perturbed_nodes:
-                perturbed_nodes[node_id][1] = new_color
-            else:
-                perturbed_nodes[node_id] = (old_color, new_color)
-
-        for node_id, (old_color, new_color) in perturbed_nodes.items():
-
-            for neighbor in state.graph.neighbors(node_id):
-                neighbor_color = state.node_to_color[neighbor]
-                key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
-
-                if neighbor_color != new_color:
-                    state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
-                else: # color == new_color
-                    # key = (min(neighbor_color, new_color), max(neighbor_color, old_color))
-                    state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
+    # else:
+    #     perturbed_nodes = dict()
+    #     for node_id, old_color, new_color in moves_to_do:
+    #
+    #         if node_id in perturbed_nodes:
+    #             perturbed_nodes[node_id][1] = new_color
+    #         else:
+    #             perturbed_nodes[node_id] = (old_color, new_color)
+    #
+    #     for node_id, (old_color, new_color) in perturbed_nodes.items():
+    #
+    #         for neighbor in state.graph.neighbors(node_id):
+    #             neighbor_color = state.node_to_color[neighbor]
+    #             key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+    #
+    #             if neighbor_color != new_color:
+    #                 state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
+    #             else: # color == new_color
+    #                 # key = (min(neighbor_color, new_color), max(neighbor_color, old_color))
+    #                 state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
 
     state.district_boundary_updated = state.iteration
 
