@@ -1,9 +1,174 @@
 import random
 import numpy as np
 import copy
+import collections
 
 from .core import MetropolisProcess, TemperedProposalMixin
 from .updaters import update_contested_edges, update_district_boundary
+
+
+
+class DistrictToDistrictFixed(TemperedProposalMixin):
+
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+        involution_state = dict()
+        for district_id in self.state.color_to_node.keys():
+            for other_district_id in self.state.color_to_node.keys():
+                if district_id < other_district_id:
+                    involution_state[(district_id, other_district_id)] = random.choices([-1, 1])[0]
+        self.state.involution_state = involution_state
+        self.log_com = False  # TODO repair the issue here
+
+
+    def step(self):
+        self.boundary = None
+        super().step()
+
+    def involve_state(self, state):
+        state.involution_state[min(self.boundary), max(self.boundary)]*=-1
+
+
+    def get_directed_edges(self, state):
+
+        self.update_boundary_scores(state)
+        # want to randomly select but weight based on acceptance probability
+
+        if self.boundary is None: # only pick if not
+            boundary = random.choices(state.boundary_totals_dict.keys(), weights=state.boundary_totals_dict.values())
+            # we don't need to check for emptiness because now we'll just skip it
+
+            if self.state.involution_state[boundary] == 1:
+                old_color, new_color = boundary
+
+            else:
+                new_color, old_color = boundary
+
+            self.boundary = (old_color, new_color) # always stored in the direction of flow
+
+        else:
+            # boundary has already been picked, meaning we are the reversed proposal - right?
+
+            new_color, old_color = self.boundary
+            boundary = (min(old_color, new_color), max(old_color, new_color)) # correct sorted order, for searching
+
+        # TODO should we also store this for the reverse proposal?
+
+        for edge in state.district_boundary[boundary]:
+            if state.node_to_color[edge[0]] == old_color:
+                yield edge
+            else:
+                yield (edge[1], edge[0])
+
+
+    def get_proposals(self, state):
+
+        self.update_boundary_scores(state) # make sure this is updated
+
+        # pick a district edge
+        if self.boundary is None: # only pick if not
+            boundary = random.choices(state.boundary_totals_dict.keys(), weights=state.boundary_totals_dict.values())
+            # we don't need to check for emptiness because now we'll just skip it
+
+            if state.involution_state[boundary] == 1:
+                old_color, new_color = boundary
+
+            else:
+                # state = -1
+                new_color, old_color = boundary
+
+            self.boundary = (old_color, new_color) # always stored in the direction of flow
+
+        else:
+            # boundary has already been picked, meaning we are the reversed proposal - right?
+
+            new_color, old_color = self.boundary
+            boundary = (min(old_color, new_color), max(old_color, new_color)) # correct sorted order, for searching
+
+        # return proposal based on pre-computed results
+        # TODO should we also store this for the reverse proposal?
+        return state.score_dict[boundary] # these are pre-computed so we will be fine
+
+
+    def rescore_boundary(self, state, boundary):
+
+        if state.involution_state[boundary] == 1:
+            old_color, new_color = boundary
+        else:
+            new_color, old_color = boundary
+
+        my_dict = dict()
+        for node_id, other_node_id in state.district_boundary[boundary]:
+            if state.node_to_color[node_id] == old_color:
+                proposal = (node_id, old_color, new_color)
+            else:
+                proposal = (other_node_id, old_color, new_color)
+            my_dict[proposal] = self.score_proposal(proposal[0], old_color, new_color, state)
+
+        return my_dict
+
+
+    def update_boundary_scores(self, state):
+        update_district_boundary(state) # ensure this is updated first
+
+        if not hasattr(state, 'boundary_scores'):
+            state.score_dict = self.boundary_scores_naive(state)
+            state.boundary_totals_dict = {boundary: sum(self.score_to_proposal_prob(score)
+                                                        for score in state.score_dict[boundary]) for boundary in state.district_boundary}
+            state.boundary_score_updated = state.iteration
+
+
+        for move in state.move_log:
+            if move is not None:
+                node_id, old_color, new_color = move
+
+                for boundary in state.score_dict:
+                    if old_color in boundary or new_color in boundary:
+                        state.score_dict[boundary] = self.rescore_boundary(state, boundary)
+                        state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in state.score_dict[boundary])
+
+
+    def handle_rejection(self, prop, state):
+        super().handle_rejection(prop, state)
+
+        node_id, old_color, new_color = prop
+        boundary = (min(old_color, new_color), max(old_color, new_color))
+        self.state.score_dict[boundary] = self.rescore_boundary(self.state, boundary)
+        self._proposal_state.score_dict[boundary] = self.rescore_boundary(self._proposal_state, boundary)
+
+        self.state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self.state.score_dict[boundary])
+        self._proposal_state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self._proposal_state.score_dict[boundary])
+
+        # self._proposal_state.boundary_totals_dict = copy.copy(self.state.boundary_totals_dict)
+        # self._proposal_state.score_dict = copy.copy(self.state.score_dict)
+
+
+    def boundary_scores_naive(self, state):
+
+        update_district_boundary(state)
+        score_dict = collections.defaultdict()
+        score_totals_dict = collections.defaultdict(float)
+        # for score_id in
+
+        for boundary in state.district_boundary:
+            score_dict[boundary] = self.rescore_boundary(state, boundary)
+            score_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in score_dict[boundary])
+
+        return score_totals_dict, score_dict
+
+    def handle_acceptance(self, prop, state):
+        super().handle_acceptance(prop, state)
+        # these are all simple objects, so copy is safe - how expensive is it though?
+
+        self.state.district_boundary = copy.copy(self._proposal_state.district_boundary)
+        self.state.district_boundary_updated += 1
+
+        # self.state.score_dict = copy.copy(self._proposal_state.score_dict)
+        # self.state.boundary_totals_dict = copy.copy(self._proposal_state.boundary_totals_dict)
+
+        # self.state.boundary_score_updated += 1
 
 
 class DistrictToDistrictFlow(MetropolisProcess):

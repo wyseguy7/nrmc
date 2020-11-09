@@ -12,7 +12,7 @@ import networkx as nx
 from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
-    update_population, check_population, update_boundary_nodes
+    update_population, check_population, update_boundary_nodes, update_district_boundary
 from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
@@ -329,6 +329,9 @@ class TemperedProposalMixin(MetropolisProcess):
             # this MUST be updated immediately before another proposal is made, else issues occur
             if hasattr(self.state, 'district_to_perimeter'):
                 update_perimeter_and_area(self._proposal_state)
+
+            if hasattr(self.state, 'district_boundary'):
+                update_district_boundary(self._proposal_state)
 
 
     def proposal(self, state):

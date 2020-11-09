@@ -227,7 +227,8 @@ def update_district_boundary(state):
 
     moves_to_do = [i for i in state.move_log[state.district_boundary_updated:] if i is not None]
 
-    # TODO we have repeated code in two places, rip out into function
+    # TODO we have repeated code in two places, rip out into functione
+    # Also this function is ridiculous
 
     if len(moves_to_do) < 5:
         for node_id, old_color, new_color in moves_to_do:
