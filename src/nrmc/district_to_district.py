@@ -97,7 +97,8 @@ class DistrictToDistrictFixed(TemperedProposalMixin):
 
         # return proposal based on pre-computed results
         # TODO should we also store this for the reverse proposal?
-        return state.score_dict[boundary] # these are pre-computed so we will be fine
+        return {prop:score  for prop, score in state.score_dict[boundary].items() if prop[1]==old_color}
+        # these are pre-computed so we will be fine, but need to filter now for involution. annoyingly this is O(n), can fix?
 
 
     def rescore_boundary(self, state, boundary):
@@ -106,19 +107,24 @@ class DistrictToDistrictFixed(TemperedProposalMixin):
         for updater in self.score_updaters:
             updater(state)
 
-        if state.involution_state[boundary] == 1:
-            old_color, new_color = boundary
-        else:
-            new_color, old_color = boundary
+        # if state.involution_state[boundary] == 1:
+        #     old_color, new_color = boundary
+        # else:
+        #     new_color, old_color = boundary
 
         proposals = set()
+        color1, color2 = boundary
 
-        for node_id, other_node_id in state.district_boundary[boundary]:
-            if state.node_to_color[node_id] == old_color:
-                proposal = (node_id, old_color, new_color)
-            else:
-                proposal = (other_node_id, old_color, new_color)
-            proposals.add(proposal)
+        for nodes in state.district_boundary[boundary]:
+            for node_id in nodes: # iterate through both
+
+                if state.node_to_color[node_id] == color1:
+                    proposal = (node_id, color1, color2)
+                else:
+                    proposal = (node_id, color2, color1)
+
+                proposals.add(proposal)
+
         proposals = self.proposal_filter(state, proposals)
 
             # my_dict[proposal] = self.score_proposal(proposal[0], old_color, new_color, state)
@@ -145,16 +151,18 @@ class DistrictToDistrictFixed(TemperedProposalMixin):
                         state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in state.score_dict[boundary].values())
 
 
-    def handle_rejection(self, prop, state):
-        super().handle_rejection(prop, state)
-
-        node_id, old_color, new_color = prop
-        boundary = (min(old_color, new_color), max(old_color, new_color))
-        self.state.score_dict[boundary] = self.rescore_boundary(self.state, boundary)
-        self._proposal_state.score_dict[boundary] = self.rescore_boundary(self._proposal_state, boundary)
-
-        self.state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self.state.score_dict[boundary].values())
-        self._proposal_state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self._proposal_state.score_dict[boundary].values())
+    # def handle_rejection(self, prop, state):
+    #     super().handle_rejection(prop, state)
+    #
+    #
+    #     self.update_boundary_scores(self.state)
+        # node_id, old_color, new_color = prop
+        # boundary = (min(old_color, new_color), max(old_color, new_color))
+        # self.state.score_dict[boundary] = self.rescore_boundary(self.state, boundary)
+        # self._proposal_state.score_dict[boundary] = self.rescore_boundary(self._proposal_state, boundary)
+        #
+        # self.state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self.state.score_dict[boundary].values())
+        # self._proposal_state.boundary_totals_dict[boundary] = sum(self.score_to_proposal_prob(score) for score in self._proposal_state.score_dict[boundary].values())
 
         # self._proposal_state.boundary_totals_dict = copy.copy(self.state.boundary_totals_dict)
         # self._proposal_state.score_dict = copy.copy(self.state.score_dict)
@@ -170,17 +178,17 @@ class DistrictToDistrictFixed(TemperedProposalMixin):
 
         return score_dict
 
-    def handle_acceptance(self, prop, state):
-        super().handle_acceptance(prop, state)
-        # these are all simple objects, so copy is safe - how expensive is it though?
-
-        self.state.district_boundary = copy.copy(self._proposal_state.district_boundary)
-        self.state.district_boundary_updated += 1
-
-        # self.state.score_dict = copy.copy(self._proposal_state.score_dict)
-        # self.state.boundary_totals_dict = copy.copy(self._proposal_state.boundary_totals_dict)
-
-        # self.state.boundary_score_updated += 1
+    # def handle_acceptance(self, prop, state):
+    #     super().handle_acceptance(prop, state)
+    #     # these are all simple objects, so copy is safe - how expensive is it though?
+    #
+    #     self.state.district_boundary = copy.copy(self._proposal_state.district_boundary)
+    #     self.state.district_boundary_updated += 1
+    #
+    #     # self.state.score_dict = copy.copy(self._proposal_state.score_dict)
+    #     # self.state.boundary_totals_dict = copy.copy(self._proposal_state.boundary_totals_dict)
+    #
+    #     # self.state.boundary_score_updated += 1
 
 
 class DistrictToDistrictFlow(MetropolisProcess):

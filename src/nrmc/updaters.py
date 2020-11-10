@@ -232,18 +232,40 @@ def update_district_boundary(state):
 
     # if len(moves_to_do) < 5:
     for node_id, old_color, new_color in moves_to_do:
+        # print("Move {}, {}, {}".format(node_id, old_color, new_color))
         for neighbor in state.graph.neighbors(node_id):
             neighbor_color = state.node_to_color[neighbor]
-            key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
             # node_key = (min(neighbor, node_id), max(neighbor))
+            node_key = (min(neighbor, node_id), max(neighbor, node_id))
 
-            if neighbor_color != new_color:
-                state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
-            else: # color == new_color
-                node_key = (min(neighbor, node_id), max(neighbor, node_id))
-                key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
-                if node_key in state.district_boundary[key]:
-                    state.district_boundary[key].remove(node_key)
+            if neighbor_color == old_color:
+                # need to add
+                key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+                state.district_boundary[key].add(node_key)
+
+            elif neighbor_color == new_color:
+                # need to subtract
+                key = (min(old_color, new_color), max(old_color, new_color))
+                state.district_boundary[key].remove(node_key)
+
+            else:
+                # neither, need to do both
+                k1 = (min(neighbor_color, old_color), max(neighbor_color, old_color))
+                k2 = (min(neighbor_color, new_color), max(neighbor_color, new_color))
+
+                state.district_boundary[k1].remove(node_key)
+                state.district_boundary[k2].add(node_key)
+
+
+
+            # if node_key in state.district_boundary[key]: # TODO this is sloppy, we should know exactly when this will occur
+            #     print("Removed {nk} from {bk}".format(nk=node_key, bk=key))
+            #     state.district_boundary[key].remove(node_key)
+            # if neighbor_color != new_color:
+            #     state.district_boundary[key].add(node_key)
+            #     print("Added {nk} to {bk}".format(nk=node_key, bk=key))
+            # # else: # color == new_color
+            # #     key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
 
     # else:
     #     perturbed_nodes = dict()

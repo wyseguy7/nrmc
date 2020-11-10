@@ -93,8 +93,8 @@ elif args.process == 'single_node_flip_tempered':
     process = SingleNodeFlipTempered(state=state_new, **process_args)
 
 elif args.process == 'district_to_district':
-    from nrmc.district_to_district import DistrictToDistrictTempered
-    process = DistrictToDistrictTempered(state=state_new, **process_args)
+    from nrmc.district_to_district import DistrictToDistrictFixed
+    process = DistrictToDistrictFixed(state=state_new, **process_args)
 
 elif args.process == 'center_of_mass':
     from nrmc.center_of_mass import CenterOfMassFlow
