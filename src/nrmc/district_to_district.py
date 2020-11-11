@@ -141,7 +141,7 @@ class DistrictToDistrictFixed(TemperedProposalMixin):
             state.boundary_score_updated = state.iteration
 
 
-        for move in state.move_log:
+        for move in state.move_log[state.boundary_score_updated:]:
             if move is not None:
                 node_id, old_color, new_color = move
 
