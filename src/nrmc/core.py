@@ -315,9 +315,13 @@ class TemperedProposalMixin(MetropolisProcess):
         self.state.population_counter = copy.copy(self._proposal_state.population_counter)
         self.state.population_deviation = copy.copy(self._proposal_state.population_deviation)
 
-        self.state.articulation_points_updated += 1
-        self.state.contested_edges_updated +=1
-        self.state.population_counter_updated += 1
+        # self.state.articulation_points_updated += 1
+        # self.state.contested_edges_updated +=1
+        # self.state.population_counter_updated += 1
+        self.state.articulation_points_updated = self.state.iteration
+        self.state.contested_edges_updated = self.state.iteration
+        self.state.population_counter_updated = self.state.iteration # set these as up-to-date
+
 
 
 
