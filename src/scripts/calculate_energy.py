@@ -1,7 +1,7 @@
 import sys
 import os
 import pickle
-import json
+import copy
 import multiprocessing as mp
 
 import pandas as pd
@@ -17,13 +17,15 @@ df = pd.read_csv(sys.argv[1])
 def calculate_energy(process, energy=0):
 
     energy_scores = []
-    for move in process.state.move_log:
+    move_log = copy.deepcopy(process.state.move_log)
+    process.state = copy.deepcopy(process._initial_state)
 
-        process._initial_state.handle_move(move) # handle it
-
+    for move in move_log:
 
         for updater in process.score_updaters:
             updater(process.state)
+
+        process._initial_state.handle_move(move) # handle it
 
         if move is not None:
             node_id, old_color, new_color = move
@@ -49,5 +51,5 @@ def write_energies(filepath, overwrite=False):
         df.to_csv(os.path.join(folder, "energy.csv"), index=None)
 
 
-with mp.Pool(processes=4) as pool: # how many should we use here?
+with mp.Pool(processes=8) as pool: # how many should we use here?
     pool.map(write_energies, list(df.filepath))
