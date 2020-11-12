@@ -7,47 +7,29 @@ import multiprocessing as mp
 import pandas as pd
 
 sys.path.append('/gtmp/etw16/nonreversiblecodebase/')
-from src.nrmc.analytics import coreset_transitions
 
 df = pd.read_csv(sys.argv[1])
 
-def population_balance_full(state):
-    return
-
-def compactness_full(state):
-    pass
-
-
-score_func_to_calc = {
-
-    'cut_length': lambda state: len(state.contested_edges),
-    'compactness': compactness_full,
-    'population_balance': population_balance_full
-
-}
-
-
-
-def compute_energy(process):
-    log_score = 0
-    for (score_weight, _), score_func in zip(process.score_list, process.score_funcs) :
-        log_score += score_weight*score_func(process.state)
-    return log_score
 
 
 
 
-def proc_data(data):
-    transitions = [(0, data[0])]
-    state = data[0]
-    for i in range(len(data)):
-        if data[i] != -1 and data[i] != state:
-            transitions.append((i, data[i]))
-            state = data[i]
+def calculate_energy(process, energy=0):
 
-    return transitions
+    energy_scores = []
+    for move in process.state.move_log:
+        for updater in process.score_updaters:
+            updater(process.state)
+        if move is not None:
+            node_id, old_color, new_color = move
+            energy += process.score_proposal(node_id, old_color, new_color, process.state)
+        energy_scores.append(energy)
 
-def write_transitions(filepath, overwrite=False):
+    return energy_scores
+
+
+
+def write_energies(filepath, overwrite=False):
     folder, filename = os.path.split(filepath)
     out_path = os.path.join(folder, 'transitions.json')
     if os.path.exists(out_path) and not overwrite:
@@ -56,11 +38,11 @@ def write_transitions(filepath, overwrite=False):
 
     with open(filepath, mode='rb') as f:
         process = pickle.load(f)
+        energy_scores = calculate_energy(process)
+        df = pd.DataFrame(energy_scores)
+        df.columns = ['energy']
+        df.to_csv(os.path.join(folder, "energy.csv"), index=None)
 
-    transitions = [(i, -1)[int(i is None)] for i in coreset_transitions(process, interval=0.5)]
-    trans = proc_data(transitions)
-    with open(out_path, mode='w') as f:
-        json.dump(trans, f)
 
 with mp.Pool(processes=4) as pool: # how many should we use here?
-    pool.map(write_transitions, list(df.filepath))
+    pool.map(write_energies, list(df.filepath))
