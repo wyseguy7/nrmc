@@ -18,8 +18,13 @@ def calculate_energy(process, energy=0):
 
     energy_scores = []
     for move in process.state.move_log:
+
+        process._initial_state.handle_move(move) # handle it
+
+
         for updater in process.score_updaters:
             updater(process.state)
+
         if move is not None:
             node_id, old_color, new_color = move
             energy += process.score_proposal(node_id, old_color, new_color, process.state)
