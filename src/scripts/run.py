@@ -36,6 +36,8 @@ parser.add_argument('--involution', type=int, default=1)
 parser.add_argument('--num_districts', type=int, default=2)
 parser.add_argument('--apd', type=float, default=0.1)
 parser.add_argument('--profile', action='store_true')
+parser.add_argument('--num_points', default=None, type=int) # for use with star-type lattice
+parser.add_argument('--graph_type', default='lattice', type=str)
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
@@ -58,22 +60,36 @@ state_args = {
 
 
 if args.folder is None:
-    # use a square lattice
-    from nrmc.lattice import create_square_lattice
-    state_new = create_square_lattice(n=args.n, **state_args)
 
-    if args.diagonal:
+    if args.graph_type == 'lattice':
+        # use a square lattice
+        from nrmc.lattice import create_square_lattice
+        state_new = create_square_lattice(n=args.n, **state_args)
 
-        if args.num_districts != 2:
-            raise ValueError("--diagonal only implemented for num_districts=2")
+        if args.diagonal:
 
-        # TODO next time just generate the boundary for this instead
-        for node in state_new.graph.nodes():
-            centroid = state_new.graph.nodes()[node]['Centroid']
-            state_new.node_to_color[node] = int(centroid[0] > centroid[1])
+            if args.num_districts != 2:
+                raise ValueError("--diagonal only implemented for num_districts=2")
 
-        colors = set(state_new.node_to_color.values())
-        state_new.color_to_node = {color: {node for node in state_new.node_to_color if state_new.node_to_color[node] == color} for color in colors}
+            # TODO next time just generate the boundary for this instead
+            for node in state_new.graph.nodes():
+                centroid = state_new.graph.nodes()[node]['Centroid']
+                state_new.node_to_color[node] = int(centroid[0] > centroid[1])
+
+            colors = set(state_new.node_to_color.values())
+            state_new.color_to_node = {color: {node for node in state_new.node_to_color if state_new.node_to_color[node] == color} for color in colors}
+
+    elif args.graph_type=='star':
+        from nrmc.lattice import create_star
+        if args.num_points is None:
+            num_points = args.num_districts
+        else:
+            num_points = args.num_points
+        state_new = create_star(n=args.n, num_districts=args.num_districts, num_points=num_points, **state_args)
+
+    else:
+        raise ValueError("Must select lattice or star")
+
 
 else:
     # create state from the relevant folder
