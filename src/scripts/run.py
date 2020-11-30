@@ -85,7 +85,7 @@ if args.folder is None:
             num_points = args.num_districts
         else:
             num_points = args.num_points
-        state_new = create_star(n=args.n, num_districts=args.num_districts, num_points=num_points, **state_args)
+        state_new = create_star(n=args.n, num_points=num_points, **state_args)
 
     else:
         raise ValueError("Must select lattice or star")
