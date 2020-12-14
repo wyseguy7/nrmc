@@ -38,6 +38,7 @@ parser.add_argument('--apd', type=float, default=0.1)
 parser.add_argument('--profile', action='store_true')
 parser.add_argument('--num_points', default=None, type=int) # for use with star-type lattice
 parser.add_argument('--graph_type', default='lattice', type=str)
+parser.add_argument('--weight_attribute', default=None, type=str)
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
@@ -47,6 +48,7 @@ process_args = {'measure_beta': args.measure_beta,
              'score_funcs': args.score_func,
              'score_weights': args.score_weights,
              'folder_path': args.output_path,
+             'weight_attribute': args.weight_attribute
                 # 'ideal_pop': args.ideal_pop
                 }
 

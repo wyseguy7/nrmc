@@ -100,7 +100,6 @@ def create_star(n=10, num_points = 4, radius_adjustment=0.1, num_districts=2, **
         next_idx = point_lookup[theta_loc + np.pi/num_points]
 
         for j in range(n):
-            print(node_idx_counter)
 
             g.add_node(node_idx_counter, Centroid=np.array(polar_to_cartesian(1+radius_adjustment*j, theta_loc), dtype='d'), **generic_args)
             g.add_edge(node_idx_counter, last_idx)
