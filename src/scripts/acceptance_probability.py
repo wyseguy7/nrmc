@@ -39,7 +39,7 @@ def write_acceptance_probs(filepath, overwrite=False, truncate=0):
     accept_prob = list()
     proposal_list = list()
     move_log = copy.deepcopy(process.state.move_log)
-    process.state = process.state._initial_state # wipe the state
+    process.state = process._initial_state # wipe the state
     for move in move_log:
         # run the updaters
         for func in process.score_updaters:
