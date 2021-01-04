@@ -34,7 +34,7 @@ def calculate_com_naive(state, weight_attribute=None):
         if weight_attribute is None:
             weights = {node_id: 1 for node_id in nodes}
         else:
-            weights = {state.graph.nodes()[node_id][weight_attribute] for node_id in nodes}
+            weights = {node_id: state.graph.nodes()[node_id][weight_attribute] for node_id in nodes}
 
         total_weight[district_id] = sum(weights.values())
         com[district_id] = np.array([sum([state.graph.nodes()[i]['Centroid'][j]*weights[i] for i in nodes]
