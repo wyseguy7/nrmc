@@ -24,7 +24,7 @@ def write_acceptance_probs(filepath, overwrite=False, truncate=0):
     print(filepath)
     folder, filename = os.path.split(filepath)
 
-    out_path = os.path.join(folder, 'involution_wait_times.json')
+    out_path = os.path.join(folder, 'acceptance_probs.csv')
     if os.path.exists(out_path) and not overwrite:
         print('skipping')
         return
