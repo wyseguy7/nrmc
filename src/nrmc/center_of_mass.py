@@ -56,7 +56,7 @@ class CenterOfMassFlow(TemperedProposalMixin):
 
     def proposal_filter(self, state, proposals):
 
-        update_center_of_mass(state)
+        update_center_of_mass(state, self.weight_attribute)
         # stack this generator on top of the earlier one
         for proposal in super().proposal_filter(state, proposals):
             # filter out any proposals that don't meet the criterion

@@ -42,17 +42,17 @@ def calculate_com_naive(state, weight_attribute=None):
     return com, total_weight
 
 
-def update_center_of_mass(state):
+def update_center_of_mass(state, weight_attribute=None):
 
     if not hasattr(state, 'com_centroid'):
-        state.com_centroid, state.com_total_weight = calculate_com_naive(state)
+        state.com_centroid, state.com_total_weight = calculate_com_naive(state, weight_attribute=weight_attribute)
         state.com_updated = state.iteration
 
     for i in state.move_log[state.com_updated:]:
         if i is not None:
             node_id, old_color, new_color = i
             (state.com_centroid[new_color], state.com_centroid[old_color],
-             state.com_total_weight[new_color], state.com_total_weight[old_color]) = calculate_com_one_step(state, i)
+             state.com_total_weight[new_color], state.com_total_weight[old_color]) = calculate_com_one_step(state, i, weight_attribute=weight_attribute)
 
     state.com_updated = state.iteration
 
