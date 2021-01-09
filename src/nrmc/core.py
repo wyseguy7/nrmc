@@ -52,7 +52,7 @@ class ProcessEncoder(json.JSONEncoder):
 class MetropolisProcess(object):
 
     def __init__(self, state, beta=1, measure_beta=1, log_com = False, folder_path = '/gtmp/etw16/runs/',
-                 score_funcs=('cut_length',), score_weights=(1.,), unique_id=None, **kwargs):
+                 score_funcs=('cut_length',), score_weights=(1.,), unique_id=None, involution_max = 1, **kwargs):
 
         self.score_list = []
         self.score_updaters = []
@@ -95,6 +95,9 @@ class MetropolisProcess(object):
             # self.state.cython_biconnected = True
 
         self._initial_state = copy.deepcopy(state)  # save for later
+
+        self.involution_counter = 0 # initialize at zero
+        self.involution_max = involution_max
 
         # for k, v in kwargs.items():
         #     setattr(self, k, v) # accept and attach
@@ -245,7 +248,13 @@ class MetropolisProcess(object):
         state.handle_move(prop)
 
     def handle_rejection(self, prop, state):
-        self.perform_involution()
+
+        self.involution_counter += 1
+
+        if self.involution_counter == self.involution_max:
+            self.perform_involution()
+            self.involution_counter = 0
+
         state.handle_move(None)
 
     def accept_reject(self, score):

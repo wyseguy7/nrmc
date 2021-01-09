@@ -39,6 +39,7 @@ parser.add_argument('--profile', action='store_true')
 parser.add_argument('--num_points', default=None, type=int) # for use with star-type lattice
 parser.add_argument('--graph_type', default='lattice', type=str)
 parser.add_argument('--weight_attribute', default=None, type=str)
+parser.add_argument('--involution_max', default=1, type=int)
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()
