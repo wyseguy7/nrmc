@@ -40,6 +40,7 @@ for fi in files:
         'minimum_population': process.state.minimum_population,
         'maximum_population': process.state.maximum_population if hasattr(process.state,
                                                                           'maximum_population') else None,
+        'involution_max': process.involution_max if hasattr(process, 'involution_max') else None,
         'mod_time': os.path.getmtime(fi),
         'center': process.center if hasattr(process, 'center') else None,
         'starting_involution': process._initial_state.involution if hasattr(process._initial_state,
