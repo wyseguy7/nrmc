@@ -22,7 +22,7 @@ parser.add_argument('--vote_file', action='store', type=str, required=False,
 args = parser.parse_args()
 overwrite = args.overwrite == 'yes'
 
-vote_df = pd.read_csv(args.vote_file, sep='\t')
+vote_df = pd.read_csv(args.vote_file, sep='\t', header=None)
 vote_df.columns = ['node_id', 'p1', 'p2', 'total', 'nan_column']
 vote_map = {row.node_id: (row.p1, row.p2) for row in vote_df.itertuples(index=False)}
 
