@@ -318,7 +318,7 @@ def compute_districts_won(process, vote_map):
 
     district_to_votes = {district_id: np.array([0,0]) for district_id in process.state.color_to_node.keys()}
     for node_id, (p1, p2) in vote_map.items():
-        district_id = process.state._initial_state.node_to_color[node_id]
+        district_id = process._initial_state.node_to_color[node_id]
         district_to_votes[district_id] += np.array([p1, p2])
 
     district_won = []
