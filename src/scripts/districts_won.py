@@ -24,7 +24,7 @@ overwrite = args.overwrite == 'yes'
 
 vote_df = pd.read_csv(args.vote_file, sep='\t')
 vote_df.columns = ['node_id', 'p1', 'p2', 'total', 'nan_column']
-vote_map = {row.node_id: (row.p1, row.p2) for row in vote_df.iteritems(index=False)}
+vote_map = {row.node_id: (row.p1, row.p2) for row in vote_df.itertuples(index=False)}
 
 def write_districts_won(filepath, vote_map=None, overwrite=False):
 
