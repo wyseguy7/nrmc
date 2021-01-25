@@ -17,13 +17,13 @@ parser.add_argument('--filepaths', action='store', type=str, required=True, defa
 parser.add_argument('--overwrite', action='store', type=str, required=False, default='no')
 parser.add_argument('--threads', action='store', type=int, required=False, default=12)
 parser.add_argument('--vote_file', action='store', type=str, required=False,
-                    default='data/Mecklenburg/Mecklenburg_P_EL12G_PR.txt')
+                    default='data/Mecklenburg/Mecklenburg_P__EL12G_PR.txt')
 
 args = parser.parse_args()
 overwrite = args.overwrite == 'yes'
 
 vote_df = pd.read_csv(args.vote_file, sep='\t')
-vote_df.columns = ['node_id', 'p1', 'p2', 'total']
+vote_df.columns = ['node_id', 'p1', 'p2', 'total', 'nan_column']
 vote_map = {row.node_id: (row.p1, row.p2) for row in vote_df.iteritems(index=False)}
 
 def write_districts_won(filepath, vote_map=None, overwrite=False):
