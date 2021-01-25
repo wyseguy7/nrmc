@@ -311,6 +311,33 @@ def track_state(process, to_track, updaters=()):
 
     return tracker # all done
 
+def compute_districts_won(process, vote_map):
+    # vote map is {node_id: (float, float)}
+
+    # count the number of districts that 1st party wins
+
+    district_to_votes = {district_id: np.array([0,0]) for district_id in process.state.color_to_node.keys()}
+    for node_id, (p1, p2) in vote_map.items():
+        district_id = process.state._initial_state.node_to_color[node_id]
+        district_to_votes[district_id] += np.array([p1, p2])
+
+    district_won = []
+    for move in process.state.move_log:
+
+        if move is not None:
+            # update district_to_votes
+            node_id, old_color, new_color = move
+            p1, p2 = vote_map[node_id]
+            district_to_votes[old_color] -= np.array([p1, p2])
+            district_to_votes[new_color] += np.array([p1, p2])
+
+        # count number of districts won
+        wins = sum(v[0] > v[1] for v in district_to_votes.values())
+        district_won.append(wins)
+
+    return district_won
+
+
 def rolling_weighted_mean(sample, times, weights, window_size=1000):
 
 
