@@ -3,11 +3,7 @@ import pickle
 import multiprocessing as mp
 import functools
 import argparse
-import sys
-import copy
-from collections import defaultdict
-import json
-import random
+import re
 
 
 from networkx.drawing.nx_pylab import draw
@@ -63,7 +59,11 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=Fals
             counter += 1
 
     # now make the movie out of the images
-    img = [cv2.imread(i) for i in os.listdir(img_path) if '.png' in i] # the list of images
+
+    # guarantee that we sort correctly according to number
+    files = sorted(os.listdir(img_path), key=lambda x: int(re.sub(x, '\\..*','')))
+    print(files)
+    img = [cv2.imread(os.path.join(img_path, i)) for i in os.listdir(img_path) if '.png' in i] # the list of images
     height, width, layers = img[0].shape
     video = cv2.VideoWriter(out_path, -1, 1, (width, height))
 
