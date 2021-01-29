@@ -5,7 +5,6 @@ import functools
 import argparse
 import re
 
-
 from networkx.drawing.nx_pylab import draw
 from matplotlib import pyplot as plt
 import pandas as pd
@@ -17,12 +16,12 @@ parser.add_argument('--overwrite', action='store', type=str, required=False, def
 parser.add_argument('--threads', action='store', type=int, required=False, default=12)
 parser.add_argument('--iter_per_image', action='store', type=int, required=False, default=1000)
 parser.add_argument('--skip_images', action='store_true', default=False)
-
+parser.add_argument('--fps', action='store', type=float, default=1.0) # frames per second
 
 args = parser.parse_args()
 overwrite = args.overwrite == 'yes'
 
-def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=False):
+def write_movie(filepath, iter_per_image=1000, overwrite=False, fps = 1, skip_images=False):
 
     folder_path = os.path.split(filepath)[0]
     img_path = os.path.join(folder_path, 'img')
@@ -65,7 +64,9 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=Fals
     print(files)
     img = [cv2.imread(os.path.join(img_path, i)) for i in os.listdir(img_path) if '.png' in i] # the list of images
     height, width, layers = img[0].shape
-    video = cv2.VideoWriter(out_path, -1, 1, (width, height))
+
+    fourcc = cv2.VideoWriter_fourcc(*'XVID') # whatever this means
+    video = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
     for j in range(len(img)):
         video.write(img[j])
@@ -75,7 +76,9 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=Fals
 
 
 
-func = functools.partial(write_movie, overwrite=overwrite, iter_per_image=args.iter_per_image)
+func = functools.partial(write_movie, overwrite=overwrite, iter_per_image=args.iter_per_image,
+                         fps=args.fps, skip_images=args.skip_images)
+
 df = pd.read_csv(args.filepaths)
 
 
