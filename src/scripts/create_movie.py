@@ -63,7 +63,7 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=Fals
             counter += 1
 
     # now make the movie out of the images
-    img = [cv2.imread(i) for i in os.listdir(img_path)] # the list of images
+    img = [cv2.imread(i) for i in os.listdir(img_path) if '.png' in i] # the list of images
     height, width, layers = img[0].shape
     video = cv2.VideoWriter(out_path, -1, 1, (width, height))
 
