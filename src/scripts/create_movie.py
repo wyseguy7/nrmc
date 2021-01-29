@@ -61,7 +61,7 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, skip_images=Fals
     # now make the movie out of the images
 
     # guarantee that we sort correctly according to number
-    files = sorted(os.listdir(img_path), key=lambda x: int(re.sub(x, '\\..*','')))
+    files = sorted(os.listdir(img_path), key=lambda x: int(re.sub('\\..*','', x)))
     print(files)
     img = [cv2.imread(os.path.join(img_path, i)) for i in os.listdir(img_path) if '.png' in i] # the list of images
     height, width, layers = img[0].shape
