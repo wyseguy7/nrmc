@@ -68,10 +68,13 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, fps = 1, skip_im
     fourcc = cv2.VideoWriter_fourcc(*'XVID') # whatever this means
     video = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
 
+    if not video.isOpened():
+        print("bork")
+
     for j in range(len(img)):
         video.write(img[j])
 
-    cv2.destroyAllWindows() # this this going to lead to bad memory issues if not run periodically?
+    # cv2.destroyAllWindows() # this this going to lead to bad memory issues if not run periodically?
     video.release()
 
 
