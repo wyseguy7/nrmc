@@ -76,6 +76,7 @@ def write_movie(filepath, iter_per_image=1000, overwrite=False, fps = 1, skip_im
 
     # cv2.destroyAllWindows() # this this going to lead to bad memory issues if not run periodically?
     video.release()
+    print(out_path) # because this takes forever
 
 
 

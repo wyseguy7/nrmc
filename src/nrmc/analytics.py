@@ -606,3 +606,24 @@ def calculate_apd(process, ideal_pop=None):
 
     return apd_list
 
+
+def tv_dist_discrete(X, MAX_X=5):
+    from collections import defaultdict
+    # X is n times p numpy array
+    n, p = X.shape
+    # counters = [defaultdict(int) for _ in range(p)]
+    counters = [{k: 0 for k in range(MAX_X + 1)} for _ in range(p)]
+    tv = []
+
+    for i in range(n):
+        for j in range(p):
+            counters[j][X[i, j]] += 1
+
+        max_diff = 0.
+        for k in range(MAX_X + 1):
+            max_k = max(counter[k] for counter in counters)
+            min_k = min(counter[k] for counter in counters)  # forgive me for repeating these loops
+            max_diff = max(max_diff, max_k - min_k)
+        tv.append(max_diff)
+
+    return [tv[i] / (i + 1) for i in range(tv)]  # don't forget to normalize!
