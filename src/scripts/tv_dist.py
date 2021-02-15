@@ -25,13 +25,12 @@ def collect_var(filepath_csv, states=6, overwrite=False):
 
     if os.path.exists(out_path) and not overwrite:
         return
-
     my_list = []
     for filepath in df_filepaths['filepath']:
-
-        df_fi = pd.read_csv(filepath)
+        fi_wins = os.path.join(os.path.split(filepath)[0], 'wins.csv')
+        df_fi = pd.read_csv(fi_wins)
         my_list.append(df_fi)
-
+    # print('pang')
     df_all = pd.concat(my_list, axis=1) # TODO check this
     # TODO drop extra rows - truncate to a maximum value
 
@@ -62,6 +61,7 @@ def collect_var(filepath_csv, states=6, overwrite=False):
     df_out.to_csv(out_path, index=None)
 
 
+print(args.filepaths)
 
 func = functools.partial(collect_var, overwrite=overwrite)
 
