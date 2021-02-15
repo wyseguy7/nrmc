@@ -45,9 +45,9 @@ def collect_var(filepath_csv, states=6, overwrite=False):
 
     for i in range(n):
         for j in range(m):
-            x = df_all.iloc[i,j]
+            x = int(df_all.iloc[i,j]) # guarantee int
             pibar_total[x] += 1
-            chain_i[j] += 1
+            chain_i[j][x] += 1
 
         pi_total_norm = pibar_total/m
         # compute phi
@@ -72,4 +72,4 @@ def safety(filepath):
 
 
 with mp.Pool(processes=args.threads) as pool:
-    pool.map(safety, list(args.filepaths))
+    pool.map(func, list(args.filepaths))
