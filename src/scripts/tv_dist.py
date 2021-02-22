@@ -45,14 +45,25 @@ def collect_var(filepath_csv, states=6, overwrite=False):
 
     for i in range(n):
         for j in range(m):
-            x = int(df_all.iloc[i,j]) # guarantee int
+            x = int(df_all.iloc[i, j])  # guarantee int
             pibar_total[x] += 1
+
+    pibar_total /= (n*m) # divide by n
+
+    for i in range(n):
+        for j in range(m):
+            x = int(df_all.iloc[i,j]) # guarantee int
+
             chain_i[j][x] += 1
 
-        pi_total_norm = pibar_total/m
         # compute phi
         for j in range(m):
-            phi[i,j] = max(abs(pi_total_norm-chain_i[j]))/(i+1) # normalization happens here
+            phi[i,j] = max(abs(pibar_total-chain_i[j]))/(i+1) # normalization happens here
+
+        if i % 1000000 == 0:
+            print(i)
+
+
 
     phi_mean = np.mean(phi, axis=1)
     phi_var = np.var(phi, axis=1)
