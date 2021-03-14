@@ -6,6 +6,69 @@ except ImportError:
     cython_biconnected = False
 
 
+def get_matrix_update(state, proposal):
+    node_id, old_color, new_color = proposal
+    neighbors = state.graph.neighbors(node_id)
+    neighbor_vec = np.zeros(shape=(state.p, 1))
+
+    for neighbor in neighbors:
+        if state.node_to_color[neighbor] == old_color:
+            neighbor_vec[neighbor] = 0
+        elif state.node_to_color[neighbor] == new_color:
+                neighbor_vec[neighbor] = -1
+
+
+    inv_update_scalar_1 = 1 + neighbor_vec.T @ state.inv[node_id,:]
+
+    inv_update_partial = state.inv - state.inv[node_id,:, None] @ neighbor_vec.T @ state.inv/inv_update_scalar_1
+    # this is the Sherman-Morrison updated inverse for the first direction
+
+    inv_update_scalar_2 = 1 + inv_update_partial[:, node_id, None].T @ neighbor_vec
+    inv_update_full = inv_update_partial - inv_update_partial @  neighbor_vec @ inv_update_partial[None, :, node_id]/inv_update_scalar_2
+    return inv_update_full, inv_update_scalar_1*inv_update_scalar_1
+
+
+def car_model_score(state, proposal):
+
+    # find updated inverse (XTX + Lambda) ^{-1}
+    # inv_update_scalar =
+    inv_update_full, inv_update_scalar = get_matrix_update(state, proposal)
+    delta_likelihood = state.xty.T @ (state.inv - inv_update_full) @ state.xty
+    score = state.phi*(delta_likelihood)*np.log(inv_update_scalar)
+
+    state.prop_inv = inv_update_full # track this so we don't have to recompute
+    state.prop_likelihood = state.likelihood + delta_likelihood
+    return score
+
+def car_model_score_naive(state, proposal):
+
+    W_cop = state.W.copy()
+
+    node_id, old_color, new_color = proposal
+    neighbors = state.graph.neighbors(node_id)
+    # neighbor_vec = np.zeros(shape=(state.p, 1))
+
+    for neighbor in neighbors:
+        if state.node_to_color[neighbor] == old_color:
+            W_cop[node_id, neighbor] = 0
+            W_cop[neighbor, node_id] = 0
+        elif state.node_to_color[neighbor] == new_color:
+            W_cop[node_id, neighbor] = -1
+            W_cop[neighbor, node_id] = -1
+
+    inv_updated = np.linalg.inv(state.xtx + state.rho*W_cop + (1-state.rho)*np.identity(state.W.shape[0]))
+
+    _, prop_det_log = np.linalg.slogdet(inv_updated)
+
+    delta_likelihood = (state.xty.T @ (inv_updated - state.inv) @ state.xty)+state.N*(prop_det_log-state.inv_det_log)
+    state.prop_likelihood = state.likelihood + delta_likelihood
+    state.prop_inv = inv_updated
+    state.prop_W = W_cop
+    state.prop_det_log = prop_det_log
+
+    return -1*delta_likelihood
+    # np.linalg.inv(state.xtx + rho*state.W + (1-rho)*np.identity(state.W.shape[0]))
+
 def compactness_score(state, proposal):
 
     if cython_biconnected:

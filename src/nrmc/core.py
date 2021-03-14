@@ -13,7 +13,8 @@ from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
     update_population, check_population, update_boundary_nodes, update_district_boundary
-from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score
+from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, \
+car_model_score, car_model_score_naive
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
@@ -29,11 +30,13 @@ except ImportError:
 
 score_lookup = {'cut_length': cut_length_score,
                 'compactness': compactness_score,
-                'population_balance': population_balance_sq_score} # TODO rip out population_balance calculation from updater
+                'population_balance': population_balance_sq_score,
+                'car_model': car_model_score_naive} # TODO rip out population_balance calculation from updater
 
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],
-                  'population_balance': [update_population]}
+                  'population_balance': [update_population],
+                  'car_model': []}
 
 class ProcessEncoder(json.JSONEncoder):
     def default(self, o):
@@ -65,6 +68,7 @@ class MetropolisProcess(object):
 
         self.state = state
         self.score_log = [] # for debugging
+        self.acceptance_prob = []
         self.beta = beta
         self.measure_beta = measure_beta
         if not hasattr(state, 'involution'):
@@ -229,7 +233,7 @@ class MetropolisProcess(object):
 
 
         # only score proposal if it passes the filter
-        return {(node_id, old_color, new_color): self.score_proposal(node_id, old_color, new_color, state)
+        return {(node_id, old_color, new_color)
                 for node_id, old_color, new_color in self.proposal_filter(state, proposals)}
 
         # return scored_proposals
@@ -237,10 +241,15 @@ class MetropolisProcess(object):
 
     def proposal(self, state):
         # picks a proposal randomly without any weighting
-        scored_proposals = self.get_proposals(self.state) # TODO check this against subclassing behaviour
+        proposals = self.get_proposals(self.state) # TODO check this against subclassing behaviour
         # score = self.score_proposal()
-        proposal = random.choices(list(scored_proposals.keys()))[0]
-        prob = self.score_to_prob(scored_proposals[proposal])  # should be totally unweighted here
+
+
+
+        proposal = random.choices(list(proposals))[0]
+        node_id, old_color, new_color = proposal
+        score = self.score_proposal(node_id, old_color, new_color, state)
+        prob = self.score_to_prob(score)  # should be totally unweighted here
 
         return proposal, prob
 
@@ -267,6 +276,8 @@ class MetropolisProcess(object):
 
     def step(self):
         prop, prob = self.proposal(self.state)  # no side effects here, should be totally based on current state
+
+        self.acceptance_prob.append(prob)
 
         if self.accept_reject(prob):  # no side effects here
             # proposal accepted!

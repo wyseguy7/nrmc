@@ -44,6 +44,33 @@ def np_to_native_keys(o):
         return str(o) # seems like best option
 
 
+def xy_to_xtx(X, Y):
+    # assuming that X is repeated for each partition
+    # X is p times m
+    # y is n times p
+
+    logger = np.zeros(shape=(X.shape[1], X.shape[1]))
+    num_reps = Y.shape[0]
+    for i in range(X.shape[1]):
+        for j in range(X.shape[1]):
+            logger[i, j] = X[:, i].T @ X[:, j]
+
+    x_mega_list = []
+    for i in range(logger.shape[0]):
+        x_list = []
+        for j in range(logger.shape[0]):
+            x_list.append(logger[i, j] * np.identity(num_reps))
+
+        x_mega_list.append(np.concatenate(x_list, axis=1))
+
+    xtx = np.concatenate(x_mega_list, axis=0)
+    xty = np.ndarray(shape=(Y.shape[0] * X.shape[1]))
+
+    for i in range(Y.shape[0]):
+        for j in range(X.shape[1]):
+            xty[i + j * Y.shape[0]] = X[:, j].T @ Y[i, :].T
+    return xtx, xty
+
 class State(object):
 
 
@@ -110,6 +137,57 @@ class State(object):
         other_dict.update(custom_dict)
         return np_to_native(other_dict)
         # return json.dumps(other_dict)
+
+    @classmethod
+    def from_object(cls, Y, X, graph, node_to_color=None, rho=0.5, **kwargs):
+
+
+        if node_to_color is None:
+
+            color_to_node = greedy_graph_coloring(graph, num_districts=kwargs['num_districts'])
+            node_to_color = {}
+            for color, nodes in color_to_node.items():
+                for node in nodes:
+                    node_to_color[node] = color
+
+        state = State(graph, node_to_color, **kwargs)
+
+        # note that these don't correspond to the actual shapes of xtx and xty used below - we're assuming a kroenecker
+        # product here
+        state.simple_Y = Y
+        state.simple_X = X
+
+        xtx, xty = xy_to_xtx(X,Y)
+        state.xty = xty
+        state.xtx = xtx
+        state.yty = np.mean(Y.T @ Y)
+        state.p = state.xtx.shape[0]
+
+
+        # initialize state parameters
+        state.W = state.graph_laplacian_naive()
+        state.inv = np.linalg.inv(state.xtx + rho*state.W + (1-rho)*np.identity(state.W.shape[0]))
+        state.rho = rho
+        state.N = state.simple_Y.shape[0]*state.simple_Y.shape[1] # total number of observations
+        _, state.inv_det_log = np.linalg.slogdet(state.inv)
+
+        state.likelihood = state.xty.T @ state.inv @ state.xty
+
+        return state
+
+    def graph_laplacian_naive(self):
+
+        lap = np.zeros(shape=(len(self.node_to_color), len(self.node_to_color)), dtype='int')
+        for node_id, color in self.node_to_color.items():
+            neighbors = list(self.graph.neighbors(node_id))
+
+            lap[node_id, node_id] = len(neighbors)
+
+            for neighbor in neighbors:
+                if self.node_to_color[neighbor] == color:
+                    lap[node_id, neighbor] = -1
+
+        return lap
 
     @classmethod
     def from_json(cls, js):
