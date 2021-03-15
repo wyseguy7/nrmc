@@ -47,26 +47,42 @@ def car_model_score_naive(state, proposal):
     node_id, old_color, new_color = proposal
     neighbors = state.graph.neighbors(node_id)
     # neighbor_vec = np.zeros(shape=(state.p, 1))
+    # W_cop[node_id, node_id] = 0 # reset this completely
 
     for neighbor in neighbors:
         if state.node_to_color[neighbor] == old_color:
+            # each one loses a neighbor
+            W_cop[node_id, node_id] -= 1
+            W_cop[neighbor, neighbor] -= 1
+
             W_cop[node_id, neighbor] = 0
             W_cop[neighbor, node_id] = 0
         elif state.node_to_color[neighbor] == new_color:
             W_cop[node_id, neighbor] = -1
             W_cop[neighbor, node_id] = -1
 
-    inv_updated = np.linalg.inv(state.xtx + state.rho*W_cop + (1-state.rho)*np.identity(state.W.shape[0]))
+            W_cop[node_id, node_id] += 1
+            W_cop[neighbor, neighbor] += 1
 
-    _, prop_det_log = np.linalg.slogdet(inv_updated)
+            # W_cop[node_id, neighbor] = 1
+            # W_cop[neighbor, node_id] = 1
 
-    delta_likelihood = (state.xty.T @ (inv_updated - state.inv) @ state.xty)+state.N*(prop_det_log-state.inv_det_log)
+    # inv_updated = np.linalg.inv(state.xtx + state.rho*W_cop + (1-state.rho)*np.identity(state.W.shape[0])+state.P1)
+    inv_updated = state.get_inv(W_cop, state.phi)
+
+
+    lda_prop = state.get_lambda(W_cop)
+    # lda_current = state.get_lambda(state.W)
+
+    prop_det_log = np.linalg.slogdet(inv_updated)[1] - np.linalg.slogdet(lda_prop)[1]
+
+    delta_likelihood = (state.xty.T @ (inv_updated - state.inv) @ state.xty)
     state.prop_likelihood = state.likelihood + delta_likelihood
     state.prop_inv = inv_updated
     state.prop_W = W_cop
     state.prop_det_log = prop_det_log
 
-    return -1*delta_likelihood
+    return -1*((state.phi*delta_likelihood )+0.5*(prop_det_log-state.inv_det_log))
     # np.linalg.inv(state.xtx + rho*state.W + (1-rho)*np.identity(state.W.shape[0]))
 
 def compactness_score(state, proposal):

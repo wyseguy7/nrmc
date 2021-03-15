@@ -10,6 +10,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 from networkx.readwrite.json_graph import node_link_graph, node_link_data
+from numpy.random import gamma
 
 CENTROID_DIM_LENGTH = 2 # TODO do we need a settings.py file?
 try:
@@ -139,7 +140,7 @@ class State(object):
         # return json.dumps(other_dict)
 
     @classmethod
-    def from_object(cls, Y, X, graph, node_to_color=None, rho=0.5, **kwargs):
+    def from_object(cls, Y, X, graph, node_to_color=None, rho=0.5, lambda_scalar = 1., **kwargs):
 
 
         if node_to_color is None:
@@ -152,28 +153,47 @@ class State(object):
 
         state = State(graph, node_to_color, **kwargs)
 
+
+        state.lambda_scalar = lambda_scalar
+
         # note that these don't correspond to the actual shapes of xtx and xty used below - we're assuming a kroenecker
         # product here
         state.simple_Y = Y
         state.simple_X = X
+        state.N = state.simple_Y.shape[0]*state.simple_Y.shape[1] # total number of observations
 
         xtx, xty = xy_to_xtx(X,Y)
         state.xty = xty
         state.xtx = xtx
-        state.yty = np.mean(Y.T @ Y)
+        # state.yty = np.mean(Y.T @ Y)/state.N
+        state.yty = np.sum(Y.T @ Y)/state.N
         state.p = state.xtx.shape[0]
+        state.P1 = 1./state.p*np.ones(shape=(state.p, state.p)) # P_1 projection matrix
 
+        state.phi = gamma(1, 1)  # bit of a random draw here - is this bad?
 
         # initialize state parameters
         state.W = state.graph_laplacian_naive()
-        state.inv = np.linalg.inv(state.xtx + rho*state.W + (1-rho)*np.identity(state.W.shape[0]))
+        # state.W = state.graph_lap_alternate() # adjacency representation
+
+
         state.rho = rho
-        state.N = state.simple_Y.shape[0]*state.simple_Y.shape[1] # total number of observations
-        _, state.inv_det_log = np.linalg.slogdet(state.inv)
+        state.inv = state.get_inv(state.W, state.phi)
+
+        state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(state.get_lambda(state.W))[1]
 
         state.likelihood = state.xty.T @ state.inv @ state.xty
 
         return state
+
+    def get_inv(self, W, phi):
+
+        return np.linalg.inv(self.xtx + self.get_lambda(W))
+
+    def get_lambda(self, W):
+        return (self.rho * W + (1 - self.rho) * np.identity(W.shape[0]))*self.lambda_scalar + self.P1
+        # return (np.identity(W.shape[0]) - self.rho*W)* self.lambda_scalar + self.P1
+
 
     def graph_laplacian_naive(self):
 
@@ -181,11 +201,27 @@ class State(object):
         for node_id, color in self.node_to_color.items():
             neighbors = list(self.graph.neighbors(node_id))
 
-            lap[node_id, node_id] = len(neighbors)
+            # lap[node_id, node_id] = len(neighbors)
 
             for neighbor in neighbors:
                 if self.node_to_color[neighbor] == color:
                     lap[node_id, neighbor] = -1
+                    lap[node_id, node_id] += 1
+
+        return lap
+
+
+    def graph_lap_alternate(self):
+
+        lap = np.zeros(shape=(len(self.node_to_color), len(self.node_to_color)), dtype='int')
+        for node_id, color in self.node_to_color.items():
+            neighbors = list(self.graph.neighbors(node_id))
+
+            lap[node_id, node_id] = 0
+
+            for neighbor in neighbors:
+                if self.node_to_color[neighbor] == color:
+                    lap[node_id, neighbor] = 1
 
         return lap
 

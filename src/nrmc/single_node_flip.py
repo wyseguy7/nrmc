@@ -1,6 +1,7 @@
 import copy
 from .core import MetropolisProcess, TemperedProposalMixin
 from numpy.random import gamma
+import numpy as np
 
 class SingleNodeFlip(MetropolisProcess):
     pass
@@ -12,12 +13,11 @@ class SingleNodeFlipTempered(TemperedProposalMixin, SingleNodeFlip):
 class SingleNodeFlipGibbs(SingleNodeFlip):
 
 
-    def __init__(self, *args, var_a=1., var_b=1., **kwargs):
+    def __init__(self, *args, var_a=10., var_b=10., **kwargs):
         super().__init__(*args, **kwargs)
         self.var_a = var_a
         self.var_b = var_b
 
-        self.state.phi = gamma(self.var_a, 1/self.var_b)
 
         self.phi_log = []
         self.likelihood_log = []
@@ -34,7 +34,7 @@ class SingleNodeFlipGibbs(SingleNodeFlip):
     def step(self):
 
         super().step()
-        phi_new = gamma(self.var_a, 1/(self.var_b + self.state.likelihood + self.state.yty)) #
+        phi_new = gamma(self.var_a+self.state.N, 2/(self.var_b - self.state.likelihood + self.state.yty*self.state.p)) #
         self.phi_log.append(phi_new)
         self.state.phi = phi_new
 
