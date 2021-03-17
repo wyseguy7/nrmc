@@ -40,6 +40,53 @@ def car_model_score(state, proposal):
     state.prop_likelihood = state.likelihood + delta_likelihood
     return score
 
+def car_model_updated(state, proposal):
+
+    W_cop = state.W.copy()
+    U_cop = state.U.copy()
+
+    node_id, old_color, new_color = proposal
+    neighbors = state.graph.neighbors(node_id)
+    # neighbor_vec = np.zeros(shape=(state.p, 1))
+    # W_cop[node_id, node_id] = 0 # reset this completely
+
+    for neighbor in neighbors:
+        if state.node_to_color[neighbor] == old_color:
+            # each one loses a neighbor
+            W_cop[node_id, node_id] -= 1
+            W_cop[neighbor, neighbor] -= 1
+
+            W_cop[node_id, neighbor] = 0
+            W_cop[neighbor, node_id] = 0
+        elif state.node_to_color[neighbor] == new_color:
+            W_cop[node_id, neighbor] = -1
+            W_cop[neighbor, node_id] = -1
+
+            # each one gains a neighbor
+            W_cop[node_id, node_id] += 1
+            W_cop[neighbor, neighbor] += 1
+
+    U_cop[node_id, old_color] = 0
+    U_cop[node_id, new_color] = 1
+
+    Lambda = state.get_lambda(W_cop)
+    lu = Lambda @ U_cop
+    inner = np.linalg.inv(U_cop.T @ lu + np.identity(U_cop.shape[1]))
+    Phi = Lambda - lu @ inner @ lu.T
+    inv_updated = np.linalg.inv(state.xtx + Phi)
+
+    prop_det_log = np.linalg.slogdet(inv_updated)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
+
+    delta_likelihood = (state.xty.T @ (inv_updated - state.inv) @ state.xty)
+    state.prop_likelihood = state.likelihood + delta_likelihood
+    state.prop_inv = inv_updated
+    state.prop_W = W_cop
+    state.prop_det_log = prop_det_log
+    state.prop_U = U_cop
+
+    return -1*((state.phi*delta_likelihood )+0.5*(prop_det_log-state.inv_det_log))
+
+
 def car_model_score_naive(state, proposal):
 
     W_cop = state.W.copy()

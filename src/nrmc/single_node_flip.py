@@ -1,6 +1,7 @@
 import copy
 from .core import MetropolisProcess, TemperedProposalMixin
-from numpy.random import gamma
+from numpy.random import gamma, normal
+from numpy.linalg import cholesky
 import numpy as np
 
 class SingleNodeFlip(MetropolisProcess):
@@ -29,6 +30,7 @@ class SingleNodeFlipGibbs(SingleNodeFlip):
         self.state.inv = self.state.prop_inv
         self.state.W  = self.state.prop_W
         self.state.inv_det_log = self.state.prop_det_log
+        self.state.U = self.state.prop_U
 
 
     def step(self):
@@ -39,4 +41,18 @@ class SingleNodeFlipGibbs(SingleNodeFlip):
         self.state.phi = phi_new
 
         self.likelihood_log.append(copy.deepcopy(self.state.likelihood))
+
+    @property
+    def beta_mle(self):
+        return self.state.inv @ self.state.xty
+
+    def sample_beta(self):
+
+        normal_noise = normal(size=self.state.p)
+        beta_chol = cholesky(self.state.inv)
+
+
+        return self.beta_mle + beta_chol @ normal_noise
+
+        # given the current state, estimate
 

@@ -14,7 +14,7 @@ from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
     update_population, check_population, update_boundary_nodes, update_district_boundary
 from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, \
-car_model_score, car_model_score_naive
+car_model_score, car_model_score_naive, car_model_updated
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
@@ -31,7 +31,7 @@ except ImportError:
 score_lookup = {'cut_length': cut_length_score,
                 'compactness': compactness_score,
                 'population_balance': population_balance_sq_score,
-                'car_model': car_model_score_naive} # TODO rip out population_balance calculation from updater
+                'car_model': car_model_updated} # TODO rip out population_balance calculation from updater
 
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],

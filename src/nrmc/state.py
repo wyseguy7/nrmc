@@ -177,14 +177,29 @@ class State(object):
         # state.W = state.graph_lap_alternate() # adjacency representation
 
 
+        U = np.zeros(shape=(state.p, len(state.color_to_node)))
+        for node, color in node_to_color.items():
+            U[node, color] = 1
+        state.U = U # assignment matrix
         state.rho = rho
-        state.inv = state.get_inv(state.W, state.phi)
-
-        state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(state.get_lambda(state.W))[1]
-
+        inv, Lambda, inner = state.matrix_computation(state.W, state.U)
+        # state.inv = state.get_inv(state.W, state.phi)
+        state.inv = inv
+        state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
         state.likelihood = state.xty.T @ state.inv @ state.xty
 
         return state
+
+
+    def matrix_computation(self, W, U):
+
+        Lambda = self.get_lambda(W)
+        lu = Lambda @ U
+        inner = np.linalg.inv(U.T @ lu + np.identity(U.shape[1]))
+        Phi = Lambda - lu @ inner @ lu.T
+        inv_updated = np.linalg.inv(self.xtx + Phi)
+
+        return inv_updated, Lambda, inner
 
     def get_inv(self, W, phi):
 
