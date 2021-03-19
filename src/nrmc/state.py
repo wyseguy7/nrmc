@@ -206,7 +206,7 @@ class State(object):
         return np.linalg.inv(self.xtx + self.get_lambda(W))
 
     def get_lambda(self, W):
-        return (self.rho * W + (1 - self.rho) * np.identity(W.shape[0]))*self.lambda_scalar + self.P1
+        return (self.rho * W + (1 - self.rho) * np.identity(W.shape[0]))*self.lambda_scalar
         # return (np.identity(W.shape[0]) - self.rho*W)* self.lambda_scalar + self.P1
 
 

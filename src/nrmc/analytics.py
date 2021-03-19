@@ -3,6 +3,8 @@ import numpy as np
 import collections
 import copy
 from collections import defaultdict
+from numpy.random import normal
+from numpy.linalg import cholesky
 
 def state_log_to_coloring(process):
     '''converts the state log to a an array of colorings, structured . only functions if coloring is an int'''
@@ -259,6 +261,72 @@ def compute_autocorr_bootstrap(process, points = 10000, max_distance=500000):
 
     return diff, weights
 
+def sample_beta(state):
+    mle = state.inv @ state.xty
+    normal_noise = normal(size=state.p)
+    beta_chol = cholesky(state.inv)
+    return mle + beta_chol @ normal_noise
+
+
+def bma(process, thinning_interval=100, burnin=10000):
+
+    state = copy.deepcopy(process._initial_state)
+    num_samps = int(len(process.state.move_log-burnin)/thinning_interval)
+
+    beta_sum = np.zeros(shape=(process.state.p, num_samps))
+    for move in process.state.move_log[:burnin]:
+        if move is not None:
+            state.handle_move(move)
+
+    # recompute all statistics here
+    U = np.zeros(shape=(state.p, len(state.color_to_node)))
+    for node, color in state.node_to_color.items():
+        U[node, color] = 1
+
+    state.W = state.graph_laplacian_naive()
+    state.U = U
+
+    bma_counter = 0
+    for i in range(burnin, len(process.state.move_log)):
+
+        move = process.state.move_log[i]
+        if i is not None:
+            state.handle_move(move)
+
+            node_id, old_color, new_color = move
+            neighbors = state.graph.neighbors(node_id)
+
+            for neighbor in neighbors:
+                if state.node_to_color[neighbor] == old_color:
+                    # each one loses a neighbor
+                    state.W[node_id, node_id] -= 1
+                    state.W[neighbor, neighbor] -= 1
+
+                    state.W[node_id, neighbor] = 0
+                    state.W[neighbor, node_id] = 0
+                elif state.node_to_color[neighbor] == new_color:
+                    state.W[node_id, neighbor] = -1
+                    state.W[neighbor, node_id] = -1
+
+                    state.W[node_id, node_id] += 1
+                    state.W[neighbor, neighbor] += 1
+
+                state.U[node_id, old_color] = 0
+                state.U[node_id, new_color] = 1
+
+        if i % thinning_interval == 0:
+
+            # only compute these when we need it
+            Lambda = state.get_lambda(state.W)
+            lu = Lambda @ state.U
+            inner = np.linalg.inv(state.U.T @ lu + np.identity(state.U.shape[1]))
+            Phi = Lambda - lu @ inner @ lu.T
+            state.inv = np.linalg.inv(state.xtx + Phi)
+
+            beta_sum[:,bma_counter] = sample_beta(state)
+            bma_counter += 1
+
+    return beta_sum
 
 def count_node_colorings(process):
 
