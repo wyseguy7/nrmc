@@ -173,20 +173,18 @@ class State(object):
         state.phi = gamma(1, 1)  # bit of a random draw here - is this bad?
 
         # initialize state parameters
-        state.W = state.graph_laplacian_naive()
+        # state.W = state.graph_laplacian_naive()
         # state.W = state.graph_lap_alternate() # adjacency representation
-
-
-        U = np.zeros(shape=(state.p, len(state.color_to_node)))
-        for node, color in node_to_color.items():
-            U[node, color] = 1
-        state.U = U # assignment matrix
+        # U = np.zeros(shape=(state.p, len(state.color_to_node)))
+        # for node, color in node_to_color.items():
+        #     U[node, color] = 1
+        # state.U = U # assignment matrix
         state.rho = rho
-        inv, Lambda, inner = state.matrix_computation(state.W, state.U)
+        # inv, Lambda, inner = state.matrix_computation(state.W, state.U)
         # state.inv = state.get_inv(state.W, state.phi)
-        state.inv = inv
-        state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
-        state.likelihood = state.xty.T @ state.inv @ state.xty
+        # state.inv = inv
+        # state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
+        # state.likelihood = state.xty.T @ state.inv @ state.xty
 
         return state
 
@@ -210,20 +208,6 @@ class State(object):
         # return (np.identity(W.shape[0]) - self.rho*W)* self.lambda_scalar + self.P1
 
 
-    def graph_laplacian_naive(self):
-
-        lap = np.zeros(shape=(len(self.node_to_color), len(self.node_to_color)), dtype='int')
-        for node_id, color in self.node_to_color.items():
-            neighbors = list(self.graph.neighbors(node_id))
-
-            # lap[node_id, node_id] = len(neighbors)
-
-            for neighbor in neighbors:
-                if self.node_to_color[neighbor] == color:
-                    lap[node_id, neighbor] = -1
-                    lap[node_id, node_id] += 1
-
-        return lap
 
 
     def graph_lap_alternate(self):

@@ -40,6 +40,54 @@ def car_model_score(state, proposal):
     state.prop_likelihood = state.likelihood + delta_likelihood
     return score
 
+def approx_car_score(state, proposal):
+
+    return 0.
+
+    # shift = np.zeros(shape=(state.p, state.p))
+    # node_id, old_color, new_color = proposal
+    #
+    # srt_p = np.sqrt(state.p)
+    # s1 = -1/srt_p / len(state.color_to_node[old_color])
+    # s2 = 1/ srt_p / len(state.color_to_node[new_color])
+    # for node in state.color_to_node[old_color]:
+    #     shift[node_id, node] = s1
+    #     shift[node, node_id] = s1
+    #
+    # for node in state.color_to_node[old_color]:
+    #     shift[node_id, node] = s2
+    #     shift[node, node_id] = s2
+    #
+    # shift[node_id, node_id] = 0
+    #
+    # return state.phi*(state.xty.T @ shift @ state.xty)
+
+
+    # amount = state.lambda_scalar*state.rho # TODO save this so we don't have to recompute
+    # # amount = 1.
+    # # u = np.zeros(shape=(state.p, 1))
+    # # neighbor_count = 0
+    # for neighbor in state.graph.neighbors(node_id):
+    #     neighbor_color = state.node_to_color[neighbor]
+    #     if neighbor_color == old_color:
+    #         shift[neighbor, node_id] = amount
+    #         shift[node_id, neighbor] = amount
+    #         shift[neighbor, neighbor] = -amount #? TODO check this
+    #
+    #         shift[node_id, node_id] -= amount
+    #
+    #         # u[neighbor] -= amount
+    #     elif neighbor_color == new_color:
+    #         shift[neighbor, node_id] = -amount
+    #         shift[node_id, neighbor] = -amount
+    #         shift[neighbor, neighbor] = amount
+    #
+    #         shift[node_id, node_id] += amount
+    #
+    # scalar = 1+shift[node_id,:] @ state.inv @ shift[:, node_id]
+    #
+    # return (state.phi*((state.xtyli @ shift @ state.xtyli.T)/scalar) - 0.5*np.log(scalar))
+
 def car_model_updated(state, proposal):
 
     W_cop = state.W.copy()
@@ -78,11 +126,11 @@ def car_model_updated(state, proposal):
     prop_det_log = np.linalg.slogdet(inv_updated)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
 
     delta_likelihood = (state.xty.T @ (inv_updated - state.inv) @ state.xty)
-    state.prop_likelihood = state.likelihood + delta_likelihood
-    state.prop_inv = inv_updated
-    state.prop_W = W_cop
-    state.prop_det_log = prop_det_log
-    state.prop_U = U_cop
+    # state.prop_likelihood = state.likelihood + delta_likelihood
+    # state.prop_inv = inv_updated
+    # state.prop_W = W_cop
+    # state.prop_det_log = prop_det_log
+    # state.prop_U = U_cop
 
     return -1*((state.phi*delta_likelihood )+0.5*(prop_det_log-state.inv_det_log))
 

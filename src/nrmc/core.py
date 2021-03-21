@@ -12,9 +12,13 @@ import networkx as nx
 from .state import connected_breadth_first, State, np_to_native
 from .constraints import simply_connected
 from .updaters import update_center_of_mass, update_contested_edges, update_perimeter_and_area, \
-    update_population, check_population, update_boundary_nodes, update_district_boundary
+    update_population, check_population, update_boundary_nodes, update_district_boundary, update_car_stats
 from .scores import cut_length_score, population_balance_score, population_balance_sq_score, compactness_score, \
-car_model_score, car_model_score_naive, car_model_updated
+car_model_score, car_model_score_naive, car_model_updated, approx_car_score
+
+from numpy.random import gamma, normal
+from numpy.linalg import cholesky
+
 
 ROT_MATRIX = np.matrix([[0, -1], [1, 0]])
 exp = lambda x: np.exp(min(x, 700)) # avoid overflow
@@ -36,7 +40,7 @@ score_lookup = {'cut_length': cut_length_score,
 score_updaters = {'cut_length': [],
                   'compactness': [update_perimeter_and_area],
                   'population_balance': [update_population],
-                  'car_model': []}
+                  'car_model': [update_car_stats]}
 
 class ProcessEncoder(json.JSONEncoder):
     def default(self, o):
@@ -360,7 +364,10 @@ class TemperedProposalMixin(MetropolisProcess):
 
     def proposal(self, state):
         # TODO this is common with SingleNodeFlipTempered, perhaps split this out
-        scored_proposals = self.get_proposals(self.state)
+        proposals = self.get_proposals(self.state)
+        scored_proposals = {(node_id, old_color, new_color):self.score_proposal(node_id, old_color, new_color, state)
+                            for node_id, old_color, new_color in proposals}
+
         proposal_probs = {k: self.score_to_proposal_prob(v) for k, v in scored_proposals.items()}
 
         try:
@@ -375,7 +382,9 @@ class TemperedProposalMixin(MetropolisProcess):
         #     return proposal, 0 # always zero
 
         reverse_proposals = self.get_proposals(self._proposal_state)
-        reverse_proposal_probs = {k: self.score_to_proposal_prob(v) for k, v in reverse_proposals.items()}
+        reverse_scored_proposals = {(node_id, old_color, new_color):self.score_proposal(node_id, old_color, new_color, state)
+                            for node_id, old_color, new_color in reverse_proposals}
+        reverse_proposal_probs = {k: self.score_to_proposal_prob(v) for k, v in reverse_scored_proposals.items()}
 
         try:
             q = reverse_proposal_probs[(proposal[0], proposal[2], proposal[1])] / sum(

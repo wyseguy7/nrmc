@@ -217,6 +217,80 @@ def process_boundary_move(state, node_id, old_color, new_color, neighbor):
         key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
         state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
 
+def create_U_naive(state):
+    U = np.zeros(shape=(state.p, len(state.color_to_node)))
+    for node, color in state.node_to_color.items():
+        U[node, color] = 1
+    return U
+
+
+def create_W_naive(state):
+    lap = np.zeros(shape=(len(state.node_to_color), len(state.node_to_color)), dtype='int')
+    for node_id, color in state.node_to_color.items():
+        neighbors = list(state.graph.neighbors(node_id))
+
+        # lap[node_id, node_id] = len(neighbors)
+
+        for neighbor in neighbors:
+            if state.node_to_color[neighbor] == color:
+                lap[node_id, neighbor] = -1
+                lap[node_id, node_id] += 1
+
+    return lap
+
+def state_update_block(state):
+    Lambda  = state.get_lambda(state.W)
+    # state.approx_inv = np.linalg.inv(state.xtx + Lambda)
+
+    lu = Lambda @ state.U
+    inner = np.linalg.inv(state.U.T @ lu + np.identity(state.U.shape[1]))
+    Phi = Lambda - lu @ inner @ lu.T
+    state.inv = np.linalg.inv(state.xtx + Phi)
+    # state.xtyli = state.xty.T @ state.inv
+    state.likelihood = state.xty.T @ state.inv @ state.xty
+    state.inv_det_log = np.linalg.slogdet(state.inv)[1] - np.linalg.slogdet(Lambda)[1] - np.linalg.slogdet(inner)[1]
+
+
+def update_car_stats(state):
+
+    if not hasattr(state, 'U'):
+        state.U = create_U_naive(state)
+        state.W = create_W_naive(state)
+        state_update_block(state)
+        state.car_updated = state.iteration
+
+    for move in state.move_log[state.car_updated:]:
+
+        if move is not None:
+
+            node_id, old_color, new_color = move
+            neighbors = state.graph.neighbors(node_id)
+            # neighbor_vec = np.zeros(shape=(state.p, 1))
+            # W_cop[node_id, node_id] = 0 # reset this completely
+
+            for neighbor in neighbors:
+                if state.node_to_color[neighbor] == old_color:
+                    # each one loses a neighbor
+                    state.W[node_id, node_id] -= 1
+                    state.W[neighbor, neighbor] -= 1
+                    state.W[node_id, neighbor] = 0
+                    state.W[neighbor, node_id] = 0
+
+                elif state.node_to_color[neighbor] == new_color:
+                    state.W[node_id, neighbor] = -1
+                    state.W[neighbor, node_id] = -1
+
+                    # each one gains a neighbor
+                    state.W[node_id, node_id] += 1
+                    state.W[neighbor, neighbor] += 1
+
+            state.U[node_id, old_color] = 0
+            state.U[node_id, new_color] = 1
+            state_update_block(state)
+            # TODO this isn't safe if any of these determinants drop below 1 - do we have any guarantees?
+
+    state.car_updated = state.iteration
+
 
 def update_district_boundary(state):
 
@@ -256,37 +330,6 @@ def update_district_boundary(state):
                 state.district_boundary[k1].remove(node_key)
                 state.district_boundary[k2].add(node_key)
 
-
-
-            # if node_key in state.district_boundary[key]: # TODO this is sloppy, we should know exactly when this will occur
-            #     print("Removed {nk} from {bk}".format(nk=node_key, bk=key))
-            #     state.district_boundary[key].remove(node_key)
-            # if neighbor_color != new_color:
-            #     state.district_boundary[key].add(node_key)
-            #     print("Added {nk} to {bk}".format(nk=node_key, bk=key))
-            # # else: # color == new_color
-            # #     key = (min(neighbor_color, old_color), max(neighbor_color, old_color))
-
-    # else:
-    #     perturbed_nodes = dict()
-    #     for node_id, old_color, new_color in moves_to_do:
-    #
-    #         if node_id in perturbed_nodes:
-    #             perturbed_nodes[node_id][1] = new_color
-    #         else:
-    #             perturbed_nodes[node_id] = (old_color, new_color)
-    #
-    #     for node_id, (old_color, new_color) in perturbed_nodes.items():
-    #
-    #         for neighbor in state.graph.neighbors(node_id):
-    #             neighbor_color = state.node_to_color[neighbor]
-    #             key = (min(neighbor_color, new_color), max(neighbor_color, new_color))
-    #
-    #             if neighbor_color != new_color:
-    #                 state.district_boundary[key].add((min(neighbor, node_id), max(neighbor, node_id)))
-    #             else: # color == new_color
-    #                 # key = (min(neighbor_color, new_color), max(neighbor_color, old_color))
-    #                 state.district_boundary[key].remove((min(neighbor, node_id), max(neighbor, node_id)))
 
     state.district_boundary_updated = state.iteration
 
