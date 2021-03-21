@@ -7,7 +7,7 @@ import random
 from .core import MetropolisProcess, TemperedProposalMixin
 from .scores import car_model_updated, approx_car_score
 from .center_of_mass import update_perimeter_and_area, calculate_com_one_step, update_center_of_mass,  compute_dot_product
-
+from .updaters import update_car_stats
 
 class GibbsMixing(MetropolisProcess):
 
@@ -43,7 +43,7 @@ class GibbsMixing(MetropolisProcess):
     def step(self):
 
         super().step()
-        phi_new = gamma(self.var_a+self.state.N, self.state.p/(self.var_b - self.state.likelihood + self.state.yty*self.state.p)) #
+        phi_new = gamma(self.var_a+0.5*self.state.N, 4/(self.var_b + 0.5*(self.state.yty*self.state.p -self.state.likelihood))) #
         self.phi_log.append(phi_new)
         self.state.phi = phi_new
 
@@ -82,6 +82,13 @@ class TemperedGibbs(TemperedProposalMixin, GibbsMixing):
         self.state.U = copy.deepcopy(self._proposal_state.U)
         self.state.car_updated = self.state.iteration
 
+    def handle_rejection(self, prop, state):
+        super().handle_rejection(prop, state)
+        if prop[0] is not None:  # ignore if we couldn't find a valid proposal
+
+            # this must be run immediately
+            if hasattr(self.state, 'U'):
+                update_car_stats(self._proposal_state)
 
 
     def proposal(self, state):
