@@ -58,7 +58,7 @@ def collect_var(filepath_csv, states=6, overwrite=False):
 
         # compute phi
         for j in range(m):
-            phi[i,j] = max(abs(pibar_total-chain_i[j]))/(i+1) # normalization happens here
+            phi[i,j] = max(abs(pibar_total-chain_i[j]/(i+1))) # normalization happens here
 
         if i % 1000000 == 0:
             print(i)
