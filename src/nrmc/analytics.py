@@ -338,6 +338,29 @@ def compute_districts_won(process, vote_map):
     return district_won
 
 
+def compute_marginals(process, vote_map):
+
+    district_to_votes = {district_id: np.array([0,0]) for district_id in process.state.color_to_node.keys()}
+    for node_id, (p1, p2) in vote_map.items():
+        district_id = process._initial_state.node_to_color[node_id]
+        district_to_votes[district_id] += np.array([p1, p2])
+
+    marginal_list = []
+    for move in process.state.move_log:
+
+        if move is not None:
+
+            node_id, old_color, new_color = move
+            p1, p2 = vote_map[node_id]
+            district_to_votes[old_color] -= np.array([p1, p2])
+            district_to_votes[new_color] += np.array([p1, p2])
+
+        marginals = sorted([i[1]-i[0] for i in district_to_votes.values()])
+        marginal_list.append(copy.deepcopy(marginals))
+
+    return marginal_list
+
+
 def rolling_weighted_mean(sample, times, weights, window_size=1000):
 
 
