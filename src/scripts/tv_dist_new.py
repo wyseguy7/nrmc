@@ -45,10 +45,10 @@ def collect_var(filepath_csv, states=6, overwrite=False):
         district_list.append(df)
 
     # now, we have quantized picture of each
-
+    print("ping")
     pibar_total = [Counter(df) for df in district_list] # make this work
     pibar_list = [{k:v/sum(d.values()) for k,v in d.items()} for d in pibar_total] # normalize by counts
-
+    print("pong")
     K = len(my_list) # number of chains
     N = len(my_list[0])
     tv_dist = np.zeros(shape=(N, K, num_districts))
@@ -57,7 +57,7 @@ def collect_var(filepath_csv, states=6, overwrite=False):
         pibar = pibar_list[district_idx]
         df = district_list[district_idx]
 
-        hist_list = [{k: 0 for k in pibar} for i in range(K)]
+        hist_list = [defaultdict(int) for i in range(K)]
         counter = 0
         for i in range(len(df)):
             counter += 1
