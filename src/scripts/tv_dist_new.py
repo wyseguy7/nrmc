@@ -67,6 +67,9 @@ def collect_var(filepath_csv, states=6, overwrite=False):
                 hist_list[k][idx] += 1
                 tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key]-v) for key, v in pibar.items()])/counter
 
+            if i % 1000000 == 0:
+                print(i)
+
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each
     df_out = pd.DataFrame(tv_dist_col)
     df_out.to_csv(out_path, index=None)
