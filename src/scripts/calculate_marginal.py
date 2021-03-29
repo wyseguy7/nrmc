@@ -42,6 +42,8 @@ func = functools.partial(write_marginals, overwrite=overwrite, vote_map=vote_map
 df = pd.read_csv(args.filepaths)
 
 
+
+
 def safety(filepath):
     try:
         return func(filepath)
