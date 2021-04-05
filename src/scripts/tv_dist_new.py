@@ -55,8 +55,10 @@ def collect_var(filepath_csv, overwrite=False):
     pibar_total = [Counter(np.ravel(df.values)) for df in district_list] # make this work
     pibar_list = [{k:v/sum(d.values()) for k,v in d.items()} for d in pibar_total] # normalize by counts
 
+    print(pibar_list)
+
     print("Finished calculating pibar in {:.2f} seconds ".format(time.time()-checkpoint))
-    checkpoint = time.time()
+    # checkpoint = time.time()
     K = len(my_list) # number of chains
     N = len(my_list[0])
     tv_dist = np.zeros(shape=(N, K, num_districts))
