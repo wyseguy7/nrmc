@@ -18,7 +18,7 @@ args = parser.parse_args()
 overwrite = args.overwrite == 'yes'
 
 def quantize(x):
-    return round(2*x, 2) # round to half-percentage point
+    return round(2*x, 2)/2 # round to half-percentage point
 
 
 def collect_var(filepath_csv, overwrite=False):
@@ -80,6 +80,7 @@ def collect_var(filepath_csv, overwrite=False):
             if i % 1000000 == 0:
                 print("Finished calculating 1000000 iterations in {:.2f} seconds ".format(time.time() - checkpoint))
                 checkpoint = time.time()
+                print(hist_list[0])
 
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each
     df_out = pd.DataFrame(tv_dist_col)
