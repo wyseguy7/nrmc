@@ -21,7 +21,7 @@ def quantize(x):
     return round(2*x, 2)/2 # round to half-percentage point
 
 
-def collect_var(filepath_csv, overwrite=False, thinning_iterval=10000):
+def collect_var(filepath_csv, overwrite=False, thinning_interval=10000):
 
     checkpoint = time.time()
 
@@ -71,12 +71,14 @@ def collect_var(filepath_csv, overwrite=False, thinning_iterval=10000):
         # counter = 0
         for i in range(len(df)):
             # counter += 1
-            for k in range(K):
+                # print(idx)
 
-                idx = df.iloc[i,k]
-                hist_list[k][idx] += 1
-                print(idx)
-                tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key]-v) for key, v in pibar.items()])/(i+1)
+            if i % thinning_interval == 0:
+                for k in range(K):
+                    idx = df.iloc[i, k]
+                    hist_list[k][idx] += 1
+
+                tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key]/(i+1)-v) for key, v in pibar.items()])
 
             if i % 1000000 == 0:
                 print("Finished calculating 1000000 iterations in {:.2f} seconds ".format(time.time() - checkpoint))
