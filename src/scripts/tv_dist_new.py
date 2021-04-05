@@ -78,12 +78,15 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000):
                     idx = df.iloc[i, k]
                     hist_list[k][idx] += 1
 
-                tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key]/(i+1)-v) for key, v in pibar.items()])
+                # tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key]/(i+1)-v) for key, v in pibar.items()])
+                tv_dist[i, k, district_idx] = 0.5 * np.sum(
+                    [abs(hist_list[k][key] / sum(hist_list[k].values()) - v) for key, v in pibar.items()])
 
             if i % 1000000 == 0:
                 print("Finished calculating 1000000 iterations in {:.2f} seconds ".format(time.time() - checkpoint))
                 checkpoint = time.time()
                 print(hist_list[0])
+                print(hist_list[1])
 
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each
     df_out = pd.DataFrame(tv_dist_col)

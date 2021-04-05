@@ -355,7 +355,8 @@ def compute_marginals(process, vote_map):
             district_to_votes[old_color] -= np.array([p1, p2])
             district_to_votes[new_color] += np.array([p1, p2])
 
-        marginals = sorted([(i[1]-i[0])/sum(i) for i in district_to_votes.values()])
+        # marginals = sorted([(i[1]-i[0])/sum(i) for i in district_to_votes.values()])
+        marginals = sorted([i[0]/ sum(i) for i in district_to_votes.values()])
         marginal_list.append(copy.deepcopy(marginals))
 
     return marginal_list
