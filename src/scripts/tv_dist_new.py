@@ -46,7 +46,7 @@ def make_initial_counter(df):
 def read_initial_csv(filepath):
     fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
     df_fi = pd.read_csv(fi_wins)
-    return df_fi
+    return df_fi.apply(quantize)
 
 
 
@@ -80,7 +80,8 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     district_list = []
     for district_idx in range(num_districts):
 
-        thingy = [df.iloc[:,district_idx].apply(quantize) for df in my_list]
+        # thingy = [df.iloc[:,district_idx].apply(quantize) for df in my_list]
+        thingy = [df.iloc[:, district_idx] for df in my_list]
         df = pd.concat(thingy, axis=1)
         district_list.append(df)
 
