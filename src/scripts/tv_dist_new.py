@@ -84,6 +84,7 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
 
 
     tv_dist = np.zeros(shape=(int(len(my_list[0]/thinning_interval)), K, num_districts))
+    print(tv_dist.shape)
     del my_list # release memory on these, we don't need them
 
     to_process = []
