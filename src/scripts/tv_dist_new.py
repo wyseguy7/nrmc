@@ -12,8 +12,8 @@ parser = argparse.ArgumentParser()
 # NOTE different behavior here - filepaths is a LIST of filepaths
 parser.add_argument('--filepaths', action='store', nargs='+', type=str, required=True, default='features_out.csv')
 parser.add_argument('--overwrite', action='store', type=str, required=False, default='no')
-parser.add_argument('--threads', action='store', type=int, required=False, default=1)
-parser.add_argument('--internal_threads', action='store', type=int, required=False, default=1)
+parser.add_argument('--threads', action='store', type=int, required=False, default=12)
+# parser.add_argument('--internal_threads', action='store', type=int, required=False, default=1)
 parser.add_argument('--thinning_interval', action='store', type=int, required=False, default=10000)
 
 args = parser.parse_args()
@@ -143,15 +143,18 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     #             print(hist_list[0])
     #             print(hist_list[1])
 
-
-func = functools.partial(collect_var, overwrite=overwrite, thinning_interval=args.thinning_interval, threads=args.internal_threads)
-
-def safety(filepath):
-    try:
-        return func(filepath)
-    except Exception as e:
-        print(e)
+for filepath in args.filepaths:
+    collect_var(filepath, overwrite=overwrite, thinning_interval=args.thinning_interval, threads=args.threads)
 
 
-with mp.Pool(processes=args.threads) as pool:
-    pool.map(func, list(args.filepaths))
+# func = functools.partial(collect_var, overwrite=overwrite, thinning_interval=args.thinning_interval, threads=args.internal_threads)
+
+# def safety(filepath):
+#     try:
+#         return func(filepath)
+#     except Exception as e:
+#         print(e)
+#
+#
+# with mp.Pool(processes=args.threads) as pool:
+#     pool.map(func, list(args.filepaths))
