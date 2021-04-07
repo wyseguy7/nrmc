@@ -22,6 +22,25 @@ overwrite = args.overwrite == 'yes'
 def quantize(x):
     return round(2*x, 2)/2 # round to half-percentage point
 
+def compute_tv_individual(k, district_idx, pibar, column, thinning_interval=10000):
+    output = np.ndarray(shape=(int(len(column)/thinning_interval)))
+    # pibar = pibar_list[district_idx]
+    # column = district_list[district_idx].iloc[:,k] # obtain the k-th column from the correct district idx
+
+    full_count = Counter()
+    for i in range(len(output)):
+
+        count = Counter(column.iloc[ (i*thinning_interval): ((i+1)*thinning_interval)]) # this is fine
+        full_count.update(count)
+
+        output[i] = 0.5 * np.sum([abs(full_count[key] / ((i+1)*thinning_interval) - v) for key, v in pibar.items()])
+
+        if i % 100 == 0:
+            print(i*thinning_interval)
+
+    return output
+
+func = functools.partial(compute_tv_individual, thinning_interval=args.thinning_interval)
 
 def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=1):
 
@@ -63,23 +82,6 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     N = len(my_list[0])
     # tv_dist = np.zeros(shape=(N, K, num_districts))
 
-    def compute_tv_individual(k, district_idx):
-        output = np.ndarray(shape=(int(len(df)/thinning_interval)))
-        pibar = pibar_list[district_idx]
-        column = district_list[district_idx].iloc[:,k] # obtain the k-th column from the correct district idx
-
-        full_count = Counter()
-        for i in range(len(output)):
-
-            count = Counter(column.iloc[ (i*thinning_interval): ((i+1)*thinning_interval)]) # this is fine
-            full_count.update(count)
-
-            output[i] = 0.5 * np.sum([abs(full_count[key] / ((i+1)*thinning_interval) - v) for key, v in pibar.items()])
-
-            if i % 100 == 0:
-                print(i*thinning_interval)
-
-        return output
 
     tv_dist = np.zeros(shape=(int(len(my_list[0]/thinning_interval)), K, num_districts))
     del my_list # release memory on these, we don't need them
@@ -87,12 +89,12 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     to_process = []
     for k in range(K):
         for district_idx in range(num_districts):
-            to_process.append((k,district_idx))
+            to_process.append((k,district_idx, pibar_list[district_idx], district_idx[district_idx][k]))
 
     with mp.Pool(processes=threads) as pool:
         results  = pool.map(compute_tv_individual, to_process)
 
-    for (k, district_idx), output in zip(to_process, results):
+    for (k, district_idx, pibar, column), output in zip(to_process, results):
         tv_dist[:, k, district_idx] = output
 
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each district_idx
