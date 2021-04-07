@@ -89,7 +89,7 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     to_process = []
     for k in range(K):
         for district_idx in range(num_districts):
-            to_process.append((k,district_idx, pibar_list[district_idx], district_idx[district_idx][k]))
+            to_process.append((k,district_idx, pibar_list[district_idx], district_list[district_idx][k]))
 
     with mp.Pool(processes=threads) as pool:
         results  = pool.map(compute_tv_individual, to_process)
