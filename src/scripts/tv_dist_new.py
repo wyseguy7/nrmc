@@ -40,6 +40,16 @@ def compute_tv_individual(k, district_idx, pibar, column, thinning_interval=1000
 
     return output
 
+def make_initial_counter(df):
+    return Counter(np.ravel(df.values))
+
+def read_initial_csv(filepath):
+    fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
+    df_fi = pd.read_csv(fi_wins)
+    return df_fi
+
+
+
 func = functools.partial(compute_tv_individual, thinning_interval=args.thinning_interval)
 
 def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=1):
@@ -52,12 +62,15 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
 
     if os.path.exists(out_path) and not overwrite:
         return
-    my_list = []
-    for filepath in df_filepaths['filepath']:
-        fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
-        df_fi = pd.read_csv(fi_wins)
-        # df_fi = df_fi.iloc[::10000,:] # TODO rip out once finished debugging
-        my_list.append(df_fi)
+    # my_list = []
+    with mp.Pool(processes=threads) as pool:
+        my_list = pool.map(read_initial_csv, df_filepaths['filepath'])
+
+    # for filepath in df_filepaths['filepath']:
+    #     fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
+    #     df_fi = pd.read_csv(fi_wins)
+    #     # df_fi = df_fi.iloc[::10000,:] # TODO rip out once finished debugging
+    #     my_list.append(df_fi)
     # print('pang')
     print("Finished loading data in {:.2f} seconds ".format(time.time()-checkpoint))
     checkpoint = time.time()
@@ -71,9 +84,10 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
         df = pd.concat(thingy, axis=1)
         district_list.append(df)
 
-    pibar_total = [Counter(np.ravel(df.values)) for df in district_list] # make this work
+    with mp.Pool(processes=threads) as pool:
+        pibar_total = pool.map(make_initial_counter, district_list)
+    # pibar_total = [Counter(np.ravel(df.values)) for df in district_list] # make this work
     pibar_list = [{k:v/sum(d.values()) for k,v in d.items()} for d in pibar_total] # normalize by counts
-
     print(pibar_list)
 
     print("Finished calculating pibar in {:.2f} seconds ".format(time.time()-checkpoint))
