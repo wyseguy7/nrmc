@@ -39,7 +39,9 @@ def compute_tv_individual(k, district_idx, pibar, column, thinning_interval=1000
         if i % 100 == 0:
             print(i*thinning_interval)
 
-    return output
+
+
+    return full_count, output
 
 def make_initial_counter(df):
     return Counter(np.ravel(df.values))
@@ -111,8 +113,17 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     with mp.Pool(processes=threads) as pool:
         results  = pool.starmap(func, to_process)
 
-    for (k, district_idx, pibar, column), output in zip(to_process, results):
+    full_count_dict = defaultdict(dict)
+
+    for (k, district_idx, pibar, column), (full_count, output) in zip(to_process, results):
         tv_dist[:, k, district_idx] = output
+
+        full_count_dict[k][district_idx] = full_count
+
+    for k, count_dict in full_count_dict.items():
+
+        hist_df = pd.DataFrame(count_dict)
+        hist_df.to_csv(os.path.join(fo, 'phi_marginals_chain{}'.format(k)+fi))
 
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each district_idx
     df_out = pd.DataFrame(tv_dist_col)
