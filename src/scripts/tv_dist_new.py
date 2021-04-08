@@ -15,6 +15,7 @@ parser.add_argument('--overwrite', action='store', type=str, required=False, def
 parser.add_argument('--threads', action='store', type=int, required=False, default=12)
 # parser.add_argument('--internal_threads', action='store', type=int, required=False, default=1)
 parser.add_argument('--thinning_interval', action='store', type=int, required=False, default=10000)
+parser.add_argument('--burn_in', action='store', type=int, required=False, default=0)
 
 args = parser.parse_args()
 overwrite = args.overwrite == 'yes'
@@ -43,13 +44,13 @@ def compute_tv_individual(k, district_idx, pibar, column, thinning_interval=1000
 def make_initial_counter(df):
     return Counter(np.ravel(df.values))
 
-def read_initial_csv(filepath):
+def read_initial_csv(filepath, burn_in=0):
     fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
-    df_fi = pd.read_csv(fi_wins)
+    df_fi = pd.read_csv(fi_wins).iloc[burn_in:]
     return df_fi.apply(quantize)
 
 
-
+read_func = functools.partial(read_initial_csv, burn_in=args.burn_in)
 func = functools.partial(compute_tv_individual, thinning_interval=args.thinning_interval)
 
 def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=1):
@@ -64,7 +65,7 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
         return
     # my_list = []
     with mp.Pool(processes=threads) as pool:
-        my_list = pool.map(read_initial_csv, df_filepaths['filepath'])
+        my_list = pool.map(read_func, df_filepaths['filepath'])
 
     # for filepath in df_filepaths['filepath']:
     #     fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
@@ -108,7 +109,7 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
             to_process.append((k,district_idx, pibar_list[district_idx], district_list[district_idx].iloc[:, k]))
 
     with mp.Pool(processes=threads) as pool:
-        results  = pool.starmap(compute_tv_individual, to_process)
+        results  = pool.starmap(func, to_process)
 
     for (k, district_idx, pibar, column), output in zip(to_process, results):
         tv_dist[:, k, district_idx] = output
