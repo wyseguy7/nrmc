@@ -96,7 +96,7 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
 
     pibar_dict = dict()
     for i in range(len(pibar_list)):
-        pibar[i] = pibar_list[i] # column district_idx,
+        pibar_dict[i] = pibar_list[i] # column district_idx,
 
     pibar = pd.DataFrame(pibar_dict)
     pibar.to_csv(os.path.join(fo, "pibar"+fi))
