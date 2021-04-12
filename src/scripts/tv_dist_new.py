@@ -94,10 +94,11 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     pibar_list = [{k:v/sum(d.values()) for k,v in d.items()} for d in pibar_total] # normalize by counts
     print(pibar_list)
 
-    pibar = pd.DataFrame()
+    pibar_dict = dict()
     for i in range(len(pibar_list)):
         pibar[i] = pibar_list[i] # column district_idx,
 
+    pibar = pd.DataFrame(pibar_dict)
     pibar.to_csv(os.path.join(fo, "pibar"+fi))
 
 
