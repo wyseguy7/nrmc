@@ -138,12 +138,13 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     df_out.to_csv(out_path, index=None)
 
     # output largest deviance histogram for each district
-    max_dev_chains = pd.DataFrame()
+    max_dev_chains_dict = dict()
     for district_idx in range(num_districts):
 
         chain_idx = np.argmax(tv_dist[-1, :, district_idx])
-        max_dev_chains[district_idx] = full_count_dict[chain_idx][district_idx]
+        max_dev_chains_dict[district_idx] = full_count_dict[chain_idx][district_idx]
 
+    max_dev_chains = pd.DataFrame(max_dev_chains_dict)
     max_dev_chains.to_csv(os.path.join(fo, "max_dev_"+fi))
 
 
