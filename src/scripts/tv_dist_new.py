@@ -94,11 +94,19 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     pibar_list = [{k:v/sum(d.values()) for k,v in d.items()} for d in pibar_total] # normalize by counts
     print(pibar_list)
 
+    pibar = pd.DataFrame()
+    for i in range(len(pibar_list)):
+        pibar[i] = pibar_list[i] # column district_idx,
+
+    pibar.to_csv(os.path.join(fo, "pibar"+fi))
+
+
     print("Finished calculating pibar in {:.2f} seconds ".format(time.time()-checkpoint))
     # checkpoint = time.time()
     K = len(my_list) # number of chains
     N = len(my_list[0])
     # tv_dist = np.zeros(shape=(N, K, num_districts))
+
 
 
     tv_dist = np.zeros(shape=(int(len(my_list[0])/thinning_interval), K, num_districts))
@@ -128,6 +136,16 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     tv_dist_col = tv_dist.mean(axis=2) # take the mean over tv distance for each district_idx
     df_out = pd.DataFrame(tv_dist_col)
     df_out.to_csv(out_path, index=None)
+
+    # output largest deviance histogram for each district
+    max_dev_chains = pd.DataFrame()
+    for district_idx in range(num_districts):
+
+        chain_idx = np.argmax(tv_dist[-1, :, district_idx])
+        max_dev_chains[district_idx] = full_count_dict[chain_idx][district_idx]
+
+    max_dev_chains.to_csv(os.path.join(fo, "max_dev_"+fi))
+
 
 
 
