@@ -4,42 +4,30 @@ import os
 
 import pandas as pd
 
-# sys.path.append('/home/grad/etw16/nonreversiblecodebase/') # TODO make this less garbage-y
-# sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/legacy/') # TODO make this less garbage-y
-# sys.path.append('/home/grad/etw16/nonreversiblecodebase/src/') # TODO make this less garbage-y
-sys.path.append('/gtmp/etw16/nonreversiblecodebase')
-
-# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
-# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\src\\') # TODO make this less garbage-y
-# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase\\legacy\\') # TODO make this less garbage-y
-# sys.path.append('C:\\Users\\wyseg\\nonreversiblecodebase') # TODO make this less garbage-y
-
-
-
 from nrmc.state import State
 
 folder_path = '/gtmp/etw16/runs/'
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--folder', action='store', type=str, required=False, default=None)
-parser.add_argument('--beta', action='store', type=float, required=False, default=1.)
-parser.add_argument('--measure_beta', action='store', type=float, required=False, default=2.)
-parser.add_argument('--score_func', default=['cut_length'], nargs='+')
-parser.add_argument('--score_weights', type=float, default=[1.0], nargs='+')
-parser.add_argument('--steps', type=int, default=1000000)
-parser.add_argument('--process', type=str, default='single_node_flip')
-parser.add_argument('--output_path', type=str, default='/gtmp/etw16/runs/')
-parser.add_argument('--ideal_pop', type=float, default=None)
+parser = argparse.ArgumentParser(description="Run a sampling chain")
+parser.add_argument('--folder', action='store', type=str, required=False, default=None, help="Folder containing setup data for graph")
+parser.add_argument('--beta', action='store', type=float, required=False, default=1., help="The beta to use while making proposals")
+parser.add_argument('--measure_beta', action='store', type=float, required=False, default=2., help="The beta to use for the measure. Higher beta means a stricter measure.")
+parser.add_argument('--score_func', default=['cut_length'], nargs='+', help="Score functions to use, separated by spaces")
+parser.add_argument('--score_weights', type=float, default=[1.0], nargs='+', help="Corresponding weights to use for score functions")
+parser.add_argument('--steps', type=int, default=1000000, help="Number of proposals to make")
+parser.add_argument('--process', type=str, default='single_node_flip', help="Proposal algorithm to use")
+parser.add_argument('--output_path', type=str, default='/gtmp/etw16/runs/', help="Path to store outputs")
+parser.add_argument('--ideal_pop', type=float, default=None, help="Deprecated")
 parser.add_argument('--diagonal', action='store_true')
-parser.add_argument('--n', type=int, default=40)
-parser.add_argument('--involution', type=int, default=1)
-parser.add_argument('--num_districts', type=int, default=2)
-parser.add_argument('--apd', type=float, default=0.1)
-parser.add_argument('--profile', action='store_true')
-parser.add_argument('--num_points', default=None, type=int) # for use with star-type lattice
-parser.add_argument('--graph_type', default='lattice', type=str)
-parser.add_argument('--weight_attribute', default=None, type=str)
-parser.add_argument('--involution_max', default=1, type=int)
+parser.add_argument('--n', type=int, default=40, help="Length of lattice")
+parser.add_argument('--involution', type=int, default=1, help="Beginning involution state")
+parser.add_argument('--num_districts', type=int, default=2, help="Number of districts")
+parser.add_argument('--apd', type=float, default=0.1, help="Allowable population deviation")
+parser.add_argument('--profile', action='store_true', help="Flag to print cProfiler output")
+parser.add_argument('--num_points', default=None, type=int, help="Number of points when sampling over a star-type lattice") # for use with star-type lattice
+parser.add_argument('--graph_type', default='lattice', type=str, help="Type of graph to use, options are lattice or star")
+parser.add_argument('--weight_attribute', default=None, type=str, help="Attribute to use for weighting, only relevant for center-of-mass")
+parser.add_argument('--involution_max', default=1, type=int, help="Deprecated")
 # parser.add_argument('--tempered', type=str)
 
 args = parser.parse_args()

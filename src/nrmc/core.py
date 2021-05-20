@@ -248,6 +248,7 @@ class MetropolisProcess(object):
         state.handle_move(prop)
 
     def handle_rejection(self, prop, state):
+        # Ignore the "involution_counter" here, involution_max should always be set to 1
 
         self.involution_counter += 1
 

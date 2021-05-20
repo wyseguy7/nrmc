@@ -39,8 +39,6 @@ def compute_tv_individual(k, district_idx, pibar, column, thinning_interval=1000
         if i % 100 == 0:
             print(i*thinning_interval)
 
-
-
     return full_count, output
 
 def make_initial_counter(df):
@@ -69,12 +67,6 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     with mp.Pool(processes=threads) as pool:
         my_list = pool.map(read_func, df_filepaths['filepath'])
 
-    # for filepath in df_filepaths['filepath']:
-    #     fi_wins = os.path.join(os.path.split(filepath)[0], 'marginals.csv')
-    #     df_fi = pd.read_csv(fi_wins)
-    #     # df_fi = df_fi.iloc[::10000,:] # TODO rip out once finished debugging
-    #     my_list.append(df_fi)
-    # print('pang')
     print("Finished loading data in {:.2f} seconds ".format(time.time()-checkpoint))
     checkpoint = time.time()
 
@@ -149,62 +141,6 @@ def collect_var(filepath_csv, overwrite=False, thinning_interval=10000, threads=
     max_dev_chains.to_csv(os.path.join(fo, "max_dev_"+fi))
 
 
-
-
-
-
-
-        # # for i in range(len(df)):
-        #     # counter += 1
-        #         # print(idx)
-        #     idx = df.iloc[i, k]
-        #         # hist_list[k][idx] += 1
-        #     hist += 1
-        #
-        #     if i % thinning_interval == 0:
-        #
-        #         # tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key-*]/(i+1)-v) for key, v in pibar.items()])
-        #         tv_dist[i, k, district_idx] = 0.5 * np.sum(
-        #             [abs(hist_list[k][key] / (i+1) - v) for key, v in pibar.items()])
-    #
-    # for district_idx in range(num_districts):
-    #
-    #     pibar = pibar_list[district_idx]
-    #     df = district_list[district_idx]
-    #
-    #     hist_list = [defaultdict(int) for i in range(K)]
-    #     # counter = 0
-    #     for i in range(len(df)):
-    #         # counter += 1
-    #             # print(idx)
-    #         for k in range(K):
-    #             idx = df.iloc[i, k]
-    #             hist_list[k][idx] += 1
-    #
-    #         if i % thinning_interval == 0:
-    #
-    #             # tv_dist[i,k,district_idx] = 0.5*np.sum([abs(hist_list[k][key-*]/(i+1)-v) for key, v in pibar.items()])
-    #             tv_dist[i, k, district_idx] = 0.5 * np.sum(
-    #                 [abs(hist_list[k][key] / (i+1) - v) for key, v in pibar.items()])
-    #
-    #         if i % 1000000 == 0:
-    #             print("Finished calculating 1000000 iterations in {:.2f} seconds ".format(time.time() - checkpoint))
-    #             checkpoint = time.time()
-    #             print(hist_list[0])
-    #             print(hist_list[1])
-
 for filepath in args.filepaths:
     collect_var(filepath, overwrite=overwrite, thinning_interval=args.thinning_interval, threads=args.threads)
 
-
-# func = functools.partial(collect_var, overwrite=overwrite, thinning_interval=args.thinning_interval, threads=args.internal_threads)
-
-# def safety(filepath):
-#     try:
-#         return func(filepath)
-#     except Exception as e:
-#         print(e)
-#
-#
-# with mp.Pool(processes=args.threads) as pool:
-#     pool.map(func, list(args.filepaths))
